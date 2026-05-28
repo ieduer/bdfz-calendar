@@ -124,15 +124,19 @@ button {
 }
 
 .brand-mark {
-  display: grid;
-  place-items: center;
   width: 46px;
   height: 46px;
+  overflow: hidden;
   border-radius: 8px;
-  color: #fffdf7;
-  background: linear-gradient(145deg, var(--monet-water), var(--monet-water-deep));
+  background: rgba(255, 253, 247, 0.72);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32), 0 12px 22px rgba(84, 127, 116, 0.22);
-  font-size: 18px;
+}
+
+.brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .brand strong,
@@ -286,6 +290,15 @@ h1 {
   grid-template-columns: minmax(270px, 330px) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
+}
+
+.calendar-workspace {
+  align-items: stretch;
+}
+
+.calendar-workspace .side-rail,
+.calendar-workspace .calendar-panel {
+  align-self: stretch;
 }
 
 .side-rail,
@@ -537,8 +550,10 @@ h1 {
 }
 
 .sheet-scroll {
-  overflow-x: auto;
+  max-height: calc(100vh - 214px);
+  overflow: auto;
   padding-bottom: 4px;
+  overscroll-behavior: contain;
 }
 
 .sheet-week {

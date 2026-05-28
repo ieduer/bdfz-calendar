@@ -5,9 +5,9 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import zhCnLocale from "@fullcalendar/core/locales/zh-cn";
 import type { CalendarApi, DatesSetArg, EventClickArg } from "@fullcalendar/core";
-import { CalendarDays, CalendarRange, ExternalLink, Rss, Search, Sparkles } from "lucide-react";
+import { CalendarDays, ExternalLink, Rss, Search, Sparkles } from "lucide-react";
 import { ACTIVE_SCHOOL_YEAR_ID, SCHOOL_YEARS } from "./data/schoolYears";
-import type { CalendarEvent, EventCategory, SchoolYear, Term } from "./types";
+import type { CalendarEvent, SchoolYear, Term } from "./types";
 import {
   categoryMeta,
   displayEventTitle,
@@ -28,18 +28,6 @@ type MonthCell = { date?: string; day?: number; weekday?: number };
 
 const GITHUB_ISSUE_URL = "https://github.com/ieduer/bdfz-calendar/issues/new";
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
-
-const visibleCategories: EventCategory[] = [
-  "holiday",
-  "exam",
-  "activity",
-  "sports",
-  "ceremony",
-  "practice",
-  "cleanup",
-  "note",
-  "cycle"
-];
 
 const yearOptions = Array.from(new Map(SCHOOL_YEARS.map((item) => [item.yearId, item.label])).entries()).sort((a, b) =>
   b[0].localeCompare(a[0])
@@ -216,7 +204,7 @@ function SheetMonth({ month, eventsByDate, today, onJumpToEvent }: SheetMonthPro
   const eventCount = countMonthEvents(month, eventsByDate);
 
   return (
-    <section className="sheet-month" aria-label={`${monthLabel(month)}预览`}>
+    <section className="sheet-month" data-month={month} aria-label={`${monthLabel(month)}预览`}>
       <div className="sheet-month-title">
         <strong>{monthLabel(month)}</strong>
         <span>{eventCount > 0 ? `${eventCount}项` : ""}</span>
@@ -244,12 +232,30 @@ type PreviewPanelProps = {
   months: string[];
   events: CalendarEvent[];
   today: string;
+  focusMonth: string;
   emptyText: string;
   onJumpToEvent: (event: CalendarEvent) => void;
 };
 
-function PreviewPanel({ title, subtitle, months, events, today, emptyText, onJumpToEvent }: PreviewPanelProps) {
+function PreviewPanel({ title, subtitle, months, events, today, focusMonth, emptyText, onJumpToEvent }: PreviewPanelProps) {
+  const sheetScrollRef = useRef<HTMLDivElement | null>(null);
   const eventsByDate = useMemo(() => buildEventsByDate(events), [events]);
+
+  useEffect(() => {
+    const scroller = sheetScrollRef.current;
+    if (!scroller) return;
+
+    const targetMonth = months.includes(focusMonth) ? focusMonth : months[0];
+    if (!targetMonth) return;
+
+    const target = scroller.querySelector<HTMLElement>(`[data-month="${targetMonth}"]`);
+    if (!target) return;
+
+    scroller.scrollTo({
+      top: Math.max(target.offsetTop - scroller.offsetTop - 38, 0),
+      behavior: "auto"
+    });
+  }, [focusMonth, months]);
 
   return (
     <section className="preview-panel sheet-preview-panel" aria-label={title}>
@@ -258,7 +264,7 @@ function PreviewPanel({ title, subtitle, months, events, today, emptyText, onJum
         <h2>{title}</h2>
       </div>
       {months.length > 0 ? (
-        <div className="sheet-scroll">
+        <div className="sheet-scroll" ref={sheetScrollRef}>
           <div className="sheet-week sheet-week-header" aria-hidden="true">
             <span>月</span>
             {WEEKDAYS.map((day) => (
@@ -283,7 +289,6 @@ export default function App() {
   const [termId, setTermId] = useState<Term["id"]>(() => preferredTermId(initialSchoolYear, localTodayText()));
   const [mode, setMode] = useState<CalendarMode>("dayGridMonth");
   const [query, setQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<EventCategory | "all">("all");
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [pendingJump, setPendingJump] = useState<CalendarEvent | null>(null);
   const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
@@ -303,15 +308,13 @@ export default function App() {
   }, [schoolYear.id, today]);
 
   const matchesFilters = (item: CalendarEvent) => {
-    const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
     const haystack = `${item.title} ${displayEventTitle(item)} ${item.audience ?? ""} ${categoryMeta[item.category].label}`.toLowerCase();
-    const matchesQuery = !normalizedQuery || haystack.includes(normalizedQuery);
-    return matchesCategory && matchesQuery;
+    return !normalizedQuery || haystack.includes(normalizedQuery);
   };
 
   const eventById = useMemo(() => new Map(term.events.map((item) => [item.id, item])), [term.events]);
 
-  const filteredEvents = useMemo(() => term.events.filter(matchesFilters), [normalizedQuery, selectedCategory, term.events]);
+  const filteredEvents = useMemo(() => term.events.filter(matchesFilters), [normalizedQuery, term.events]);
   const calendarEvents = useMemo(
     () =>
       filteredEvents.map((item) => {
@@ -346,11 +349,14 @@ export default function App() {
     () => importantEvents(allYearEvents),
     [allYearEvents]
   );
-  const filteredYearEvents = useMemo(() => yearEvents.filter(matchesFilters), [normalizedQuery, selectedCategory, yearEvents]);
-  const filteredAllYearEvents = useMemo(() => allYearEvents.filter(matchesFilters), [allYearEvents, normalizedQuery, selectedCategory]);
+  const filteredYearEvents = useMemo(() => yearEvents.filter(matchesFilters), [normalizedQuery, yearEvents]);
+  const filteredAllYearEvents = useMemo(() => allYearEvents.filter(matchesFilters), [allYearEvents, normalizedQuery]);
   const yearPreviewEvents = filteredAllYearEvents;
   const termMonths = useMemo(() => monthRange(term.start, term.end), [term.start, term.end]);
   const fullYearMonths = useMemo(() => schoolYearMonths(schoolYear), [schoolYear]);
+  const todayMonth = today.slice(0, 7);
+  const termPreviewFocusMonth = termMonths.includes(todayMonth) ? todayMonth : defaultFocusDate.slice(0, 7);
+  const yearPreviewFocusMonth = fullYearMonths.includes(todayMonth) ? todayMonth : fullYearMonths[0] ?? todayMonth;
   const overviewStats = useMemo(
     () => ({
       events: yearEvents.length,
@@ -386,9 +392,9 @@ export default function App() {
   useEffect(() => {
     const api = calendarRef.current?.getApi();
     const firstMatch = filteredEvents.find((item) => item.category !== "cycle") ?? filteredEvents[0];
-    if (!api || !isFullCalendarMode(mode) || !firstMatch || (!query.trim() && selectedCategory === "all")) return;
+    if (!api || !isFullCalendarMode(mode) || !firstMatch || !query.trim()) return;
     api.gotoDate(firstMatch.date);
-  }, [filteredEvents, mode, query, selectedCategory]);
+  }, [filteredEvents, mode, query]);
 
   useEffect(
     () => () => {
@@ -438,7 +444,6 @@ export default function App() {
 
     if (nextTerm && nextTerm.id !== term.id) setTermId(nextTerm.id);
     if (!matchesFilters(item)) {
-      setSelectedCategory("all");
       setQuery("");
     }
 
@@ -466,10 +471,12 @@ export default function App() {
       <div className="watercolor-bg" aria-hidden="true" />
       <header className="masthead">
         <div className="masthead-top">
-          <a className="brand" href="/" aria-label="北大附中校历首页">
-            <span className="brand-mark">校历</span>
+          <a className="brand" href="/" aria-label="校历首页">
+            <span className="brand-mark" aria-hidden="true">
+              <img src="/bdfz.png" alt="" />
+            </span>
             <span>
-              <strong>北大附中校历</strong>
+              <strong>校历</strong>
               <small>{schoolYear.label} · {schoolYear.division}</small>
             </span>
           </a>
@@ -499,7 +506,7 @@ export default function App() {
         </div>
       </header>
 
-      <section className="workspace">
+      <section className={`workspace ${mode === "dayGridMonth" ? "calendar-workspace" : ""}`}>
         <aside className="side-rail" aria-label="校历控制与近期事件">
           <div className="control-block">
             <div className="select-grid">
@@ -524,30 +531,18 @@ export default function App() {
             </label>
             <div className="view-switch" aria-label="视图切换">
               <button type="button" className={mode === "dayGridMonth" ? "active" : ""} onClick={() => setMode("dayGridMonth")}>
-                <CalendarDays size={16} />
                 月历
               </button>
               <button type="button" className={mode === "overview" ? "active" : ""} onClick={() => setMode("overview")}>
-                <CalendarRange size={16} />
                 概览
               </button>
               <button type="button" className={mode === "termPreview" ? "active" : ""} onClick={() => setMode("termPreview")} aria-label="学期预览">
-                <CalendarRange size={16} />
                 学期
               </button>
               <button type="button" className={mode === "yearPreview" ? "active" : ""} onClick={() => setMode("yearPreview")} aria-label="年历预览">
-                <CalendarDays size={16} />
                 年历
               </button>
             </div>
-            <select value={selectedCategory} onChange={(event) => setSelectedCategory(event.target.value as EventCategory | "all")}>
-              <option value="all">全部类型</option>
-              {visibleCategories.map((category) => (
-                <option key={category} value={category}>
-                  {categoryMeta[category].label}
-                </option>
-              ))}
-            </select>
             <div className="subscribe-row">
               <a className="export-button" href={webcalUrl}>
                 <Rss size={16} />
@@ -656,6 +651,7 @@ export default function App() {
             months={termMonths}
             events={termPreviewEvents}
             today={today}
+            focusMonth={termPreviewFocusMonth}
             emptyText={emptyText}
             onJumpToEvent={jumpToEvent}
           />
@@ -666,6 +662,7 @@ export default function App() {
             months={fullYearMonths}
             events={yearPreviewEvents}
             today={today}
+            focusMonth={yearPreviewFocusMonth}
             emptyText={emptyText}
             onJumpToEvent={jumpToEvent}
           />
