@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "prebuild": "tsx scripts/generate-feeds.ts",
+    "audit:data": "tsx scripts/audit-calendar-data.ts",
+    "prebuild": "npm run audit:data && tsx scripts/generate-feeds.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "deploy": "npm run build && wrangler pages deploy dist --project-name bdfz-calendar"

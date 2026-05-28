@@ -20,10 +20,11 @@ npm run dev
 ## Validate
 
 ```bash
+npm run audit:data
 npm run build
 ```
 
-`npm run build` regenerates `public/feeds/*-all.ics` before Vite builds.
+`npm run audit:data` checks date ranges, cycle-day circled numbers, shifted A-E/F days, and partial-source freshness. `npm run build` regenerates `public/feeds/*-all.ics` before Vite builds.
 
 ## Yuque extraction
 
@@ -69,8 +70,9 @@ curl -sS https://cal.bdfz.net/ | head
 3. Review the raw extract under `data/raw/`.
 4. Add a new `SchoolYear` object in `src/data/schoolYears.ts`; do not replace or delete previous years.
 5. Set `ACTIVE_SCHOOL_YEAR_ID` to the active dataset id.
-6. Run `npm run build`.
-7. Deploy to the same Pages project.
+6. Run `npm run audit:data` and review warnings.
+7. Run `npm run build`.
+8. Deploy to the same Pages project.
 
 Keep historical years in the data file unless there is a clear reason to remove them.
 

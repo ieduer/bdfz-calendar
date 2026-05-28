@@ -5,9 +5,9 @@ const formatter = new Intl.DateTimeFormat("zh-CN", {
 });
 
 export const addDays = (dateText: string, days: number): string => {
-  const date = new Date(`${dateText}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  const [year, month, day] = dateText.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 };
 
 export const toExclusiveEnd = (dateText?: string): string | undefined =>
@@ -23,3 +23,8 @@ export const formatRange = (start: string, end?: string): string => {
 export const compareDateText = (a: string, b: string): number => a.localeCompare(b);
 
 export const todayText = (): string => new Date().toISOString().slice(0, 10);
+
+export const localTodayText = (): string => {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};

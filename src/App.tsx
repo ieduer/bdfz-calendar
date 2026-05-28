@@ -7,15 +7,27 @@ import zhCnLocale from "@fullcalendar/core/locales/zh-cn";
 import type { CalendarApi, DatesSetArg, EventClickArg } from "@fullcalendar/core";
 import { CalendarDays, CalendarRange, ExternalLink, ListFilter, Rss, Search, Sparkles } from "lucide-react";
 import { ACTIVE_SCHOOL_YEAR_ID, SCHOOL_YEARS } from "./data/schoolYears";
-import type { CalendarEvent, EventCategory, Term } from "./types";
-import { categoryMeta, importantEvents, termStats, toFullCalendarEvent, upcomingEvents } from "./lib/calendar";
-import { compareDateText, formatRange, todayText } from "./lib/dates";
+import type { CalendarEvent, EventCategory, SchoolYear, Term } from "./types";
+import {
+  categoryMeta,
+  displayEventTitle,
+  eventClassNames,
+  eventColor,
+  importantEvents,
+  termStats,
+  toFullCalendarEvent,
+  upcomingEvents
+} from "./lib/calendar";
+import { addDays, compareDateText, formatRange, localTodayText } from "./lib/dates";
 import { EventSheet } from "./components/EventSheet";
 import "./styles.css";
 
-type CalendarMode = "dayGridMonth" | "listMonth" | "overview";
+type FullCalendarMode = "dayGridMonth" | "listMonth";
+type CalendarMode = FullCalendarMode | "overview" | "termPreview" | "yearPreview";
+type MonthCell = { date?: string; day?: number; weekday?: number };
 
 const GITHUB_ISSUE_URL = "https://github.com/ieduer/bdfz-calendar/issues/new";
+const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 
 const visibleCategories: EventCategory[] = [
   "holiday",
@@ -37,11 +49,181 @@ const findCalendar = (calendarId: string) =>
   SCHOOL_YEARS.find((item) => item.id === calendarId) ?? SCHOOL_YEARS.find((item) => item.id === ACTIVE_SCHOOL_YEAR_ID) ?? SCHOOL_YEARS[0];
 
 const getOrigin = () => (typeof window === "undefined" ? "https://cal.bdfz.net" : window.location.origin);
+const isFullCalendarMode = (mode: CalendarMode): mode is FullCalendarMode => mode === "dayGridMonth" || mode === "listMonth";
+const dateInRange = (date: string, start: string, end: string): boolean => date >= start && date <= end;
+const preferredTermId = (schoolYear: SchoolYear, date: string): Term["id"] =>
+  schoolYear.terms.find((item) => dateInRange(date, item.start, item.end))?.id ?? schoolYear.activeTermId;
+
+const monthRange = (start: string, end: string): string[] => {
+  const months: string[] = [];
+  const current = new Date(`${start.slice(0, 7)}-01T00:00:00`);
+  const last = new Date(`${end.slice(0, 7)}-01T00:00:00`);
+
+  while (current <= last) {
+    const year = current.getFullYear();
+    const month = String(current.getMonth() + 1).padStart(2, "0");
+    months.push(`${year}-${month}`);
+    current.setMonth(current.getMonth() + 1);
+  }
+
+  return months;
+};
+
+const schoolYearMonths = (schoolYear: SchoolYear): string[] => {
+  const starts = schoolYear.terms.map((item) => item.start).sort();
+  const ends = schoolYear.terms.map((item) => item.end).sort();
+  return starts[0] && ends[ends.length - 1] ? monthRange(starts[0], ends[ends.length - 1]) : [];
+};
+
+const monthLabel = (month: string): string => {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return `${year}年${monthNumber}月`;
+};
+
+const buildMonthCells = (month: string): MonthCell[] => {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const leading = (new Date(year, monthNumber - 1, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, monthNumber, 0).getDate();
+  const cells: MonthCell[] = Array.from({ length: leading }, () => ({}));
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = `${month}-${String(day).padStart(2, "0")}`;
+    cells.push({ date, day, weekday: ((new Date(`${date}T00:00:00`).getDay() + 6) % 7) + 1 });
+  }
+
+  const trailing = (7 - (cells.length % 7)) % 7;
+  return trailing ? [...cells, ...Array.from({ length: trailing }, () => ({}))] : cells;
+};
+
+const buildEventsByDate = (events: CalendarEvent[]): Map<string, CalendarEvent[]> => {
+  const buckets = new Map<string, CalendarEvent[]>();
+
+  events.forEach((item) => {
+    let date = item.date;
+    const last = item.endDate ?? item.date;
+    while (date <= last) {
+      buckets.set(date, [...(buckets.get(date) ?? []), item]);
+      date = addDays(date, 1);
+    }
+  });
+
+  return buckets;
+};
+
+const countMonthEvents = (month: string, eventsByDate: Map<string, CalendarEvent[]>): number => {
+  const ids = new Set<string>();
+  Array.from(eventsByDate.entries()).forEach(([date, items]) => {
+    if (date.startsWith(month)) items.forEach((item) => ids.add(item.id));
+  });
+  return ids.size;
+};
+
+type MiniMonthProps = {
+  month: string;
+  eventsByDate: Map<string, CalendarEvent[]>;
+  today: string;
+  onSelectEvent: (event: CalendarEvent) => void;
+};
+
+function MiniMonth({ month, eventsByDate, today, onSelectEvent }: MiniMonthProps) {
+  const cells = useMemo(() => buildMonthCells(month), [month]);
+  const eventCount = countMonthEvents(month, eventsByDate);
+
+  return (
+    <section className="mini-month" aria-label={`${monthLabel(month)}预览`}>
+      <div className="mini-month-header">
+        <strong>{monthLabel(month)}</strong>
+        <span>{eventCount > 0 ? `${eventCount}项` : ""}</span>
+      </div>
+      <div className="mini-weekdays" aria-hidden="true">
+        {WEEKDAYS.map((day) => (
+          <span key={day}>{day}</span>
+        ))}
+      </div>
+      <div className="mini-days">
+        {cells.map((cell, index) => {
+          if (!cell.date) return <span key={`empty-${index}`} className="mini-day empty" aria-hidden="true" />;
+
+          const dayEvents = eventsByDate.get(cell.date) ?? [];
+          const mainEvent = dayEvents.find((item) => item.category !== "cycle") ?? dayEvents[0];
+          const className = [
+            "mini-day",
+            dayEvents.length > 0 ? "has-events" : "",
+            cell.date === today ? "is-today" : "",
+            cell.weekday === 6 ? "is-saturday" : "",
+            cell.weekday === 7 ? "is-sunday" : ""
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          if (!mainEvent) {
+            return (
+              <span key={cell.date} className={className}>
+                <span>{cell.day}</span>
+              </span>
+            );
+          }
+
+          return (
+            <button
+              key={cell.date}
+              type="button"
+              className={className}
+              title={`${cell.date} ${dayEvents.map(displayEventTitle).join(" / ")}`}
+              aria-label={`${cell.date} ${displayEventTitle(mainEvent)}`}
+              onClick={() => onSelectEvent(mainEvent)}
+            >
+              <span>{cell.day}</span>
+              <span className="mini-dots" aria-hidden="true">
+                {dayEvents.slice(0, 3).map((item) => (
+                  <i key={`${cell.date}-${item.id}`} className={eventClassNames(item).join(" ")} style={{ backgroundColor: eventColor(item) }} />
+                ))}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+type PreviewPanelProps = {
+  title: string;
+  subtitle: string;
+  months: string[];
+  events: CalendarEvent[];
+  today: string;
+  emptyText: string;
+  onSelectEvent: (event: CalendarEvent) => void;
+};
+
+function PreviewPanel({ title, subtitle, months, events, today, emptyText, onSelectEvent }: PreviewPanelProps) {
+  const eventsByDate = useMemo(() => buildEventsByDate(events), [events]);
+
+  return (
+    <section className="preview-panel" aria-label={title}>
+      <div className="section-heading">
+        <p>{subtitle}</p>
+        <h2>{title}</h2>
+      </div>
+      {months.length > 0 && events.length > 0 ? (
+        <div className="preview-month-grid">
+          {months.map((month) => (
+            <MiniMonth key={month} month={month} eventsByDate={eventsByDate} today={today} onSelectEvent={onSelectEvent} />
+          ))}
+        </div>
+      ) : (
+        <p className="empty-panel">{emptyText}</p>
+      )}
+    </section>
+  );
+}
 
 export default function App() {
   const calendarRef = useRef<FullCalendar | null>(null);
+  const initialSchoolYear = findCalendar(ACTIVE_SCHOOL_YEAR_ID);
   const [calendarId, setCalendarId] = useState(ACTIVE_SCHOOL_YEAR_ID);
-  const [termId, setTermId] = useState<Term["id"]>(() => findCalendar(ACTIVE_SCHOOL_YEAR_ID).activeTermId);
+  const [termId, setTermId] = useState<Term["id"]>(() => preferredTermId(initialSchoolYear, localTodayText()));
   const [mode, setMode] = useState<CalendarMode>(() => (window.innerWidth < 720 ? "listMonth" : "dayGridMonth"));
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | "all">("all");
@@ -51,17 +233,19 @@ export default function App() {
   const schoolYear = findCalendar(calendarId);
   const divisionsForYear = SCHOOL_YEARS.filter((item) => item.yearId === schoolYear.yearId);
   const term = schoolYear.terms.find((item) => item.id === termId) ?? schoolYear.terms[0];
+  const calendarViewMode: FullCalendarMode = isFullCalendarMode(mode) ? mode : "dayGridMonth";
   const stats = useMemo(() => termStats(term), [term]);
-  const today = todayText();
+  const today = localTodayText();
+  const defaultFocusDate = dateInRange(today, term.start, term.end) ? today : term.start;
   const normalizedQuery = query.trim().toLowerCase();
 
   useEffect(() => {
-    setTermId(schoolYear.activeTermId);
-  }, [schoolYear.id, schoolYear.activeTermId]);
+    setTermId(preferredTermId(schoolYear, today));
+  }, [schoolYear.id, today]);
 
   const matchesFilters = (item: CalendarEvent) => {
     const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
-    const haystack = `${item.title} ${item.audience ?? ""} ${categoryMeta[item.category].label}`.toLowerCase();
+    const haystack = `${item.title} ${displayEventTitle(item)} ${item.audience ?? ""} ${categoryMeta[item.category].label}`.toLowerCase();
     const matchesQuery = !normalizedQuery || haystack.includes(normalizedQuery);
     return matchesCategory && matchesQuery;
   };
@@ -70,14 +254,30 @@ export default function App() {
 
   const filteredEvents = useMemo(() => term.events.filter(matchesFilters), [normalizedQuery, selectedCategory, term.events]);
   const calendarEvents = useMemo(() => filteredEvents.map(toFullCalendarEvent), [filteredEvents]);
+  const termPreviewEvents = filteredEvents;
   const important = useMemo(() => importantEvents(term.events), [term.events]);
   const nextEvents = useMemo(() => upcomingEvents(term, today, 7), [term, today]);
+  const todayEvents = useMemo(
+    () =>
+      term.events
+        .filter((item) => item.date <= today && (item.endDate ?? item.date) >= today)
+        .sort((a, b) => Number(a.category === "cycle") - Number(b.category === "cycle") || displayEventTitle(a).localeCompare(displayEventTitle(b))),
+    [term.events, today]
+  );
 
-  const yearEvents = useMemo(
-    () => schoolYear.terms.flatMap((item) => importantEvents(item.events)).sort((a, b) => compareDateText(a.date, b.date)),
+  const allYearEvents = useMemo(
+    () => schoolYear.terms.flatMap((item) => item.events).sort((a, b) => compareDateText(a.date, b.date)),
     [schoolYear]
   );
+  const yearEvents = useMemo(
+    () => importantEvents(allYearEvents),
+    [allYearEvents]
+  );
   const filteredYearEvents = useMemo(() => yearEvents.filter(matchesFilters), [normalizedQuery, selectedCategory, yearEvents]);
+  const filteredAllYearEvents = useMemo(() => allYearEvents.filter(matchesFilters), [allYearEvents, normalizedQuery, selectedCategory]);
+  const yearPreviewEvents = filteredAllYearEvents;
+  const termMonths = useMemo(() => monthRange(term.start, term.end), [term.start, term.end]);
+  const fullYearMonths = useMemo(() => schoolYearMonths(schoolYear), [schoolYear]);
   const overviewStats = useMemo(
     () => ({
       events: yearEvents.length,
@@ -95,23 +295,34 @@ export default function App() {
     });
     return Array.from(buckets.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredYearEvents]);
+  const isYearScope = mode === "overview" || mode === "yearPreview";
+  const displayStats = isYearScope ? overviewStats : stats;
+  const scopeLine = isYearScope ? `${schoolYear.label} · ${schoolYear.division}` : `${schoolYear.label} · ${schoolYear.division} · ${term.label}`;
+  const timelineEvents = useMemo(
+    () =>
+      important
+        .filter((item) => selectedCategory === "all" || item.category === selectedCategory)
+        .filter((item) => !normalizedQuery || `${displayEventTitle(item)}${item.audience ?? ""}`.toLowerCase().includes(normalizedQuery))
+        .sort((a, b) => compareDateText(a.date, b.date)),
+    [important, normalizedQuery, selectedCategory]
+  );
 
   useEffect(() => {
     const api = calendarRef.current?.getApi();
-    if (!api || mode === "overview") return;
+    if (!api || !isFullCalendarMode(mode)) return;
     api.changeView(mode);
   }, [mode]);
 
   useEffect(() => {
     const api = calendarRef.current?.getApi();
-    if (!api || mode === "overview") return;
-    api.gotoDate(term.start);
-  }, [mode, term.start]);
+    if (!api || !isFullCalendarMode(mode)) return;
+    api.gotoDate(defaultFocusDate);
+  }, [defaultFocusDate, mode]);
 
   useEffect(() => {
     const api = calendarRef.current?.getApi();
     const firstMatch = filteredEvents.find((item) => item.category !== "cycle") ?? filteredEvents[0];
-    if (!api || mode === "overview" || !firstMatch || (!query.trim() && selectedCategory === "all")) return;
+    if (!api || !isFullCalendarMode(mode) || !firstMatch || (!query.trim() && selectedCategory === "all")) return;
     api.gotoDate(firstMatch.date);
   }, [filteredEvents, mode, query, selectedCategory]);
 
@@ -143,45 +354,44 @@ export default function App() {
   return (
     <main className="page-shell">
       <div className="watercolor-bg" aria-hidden="true" />
-      <header className="topbar">
-        <a className="brand" href="/" aria-label="北大附中校历首页">
-          <span className="brand-mark">校历</span>
-          <span>
-            <strong>北大附中校历</strong>
-            <small>{schoolYear.label} · {schoolYear.division}</small>
-          </span>
-        </a>
-        <nav className="term-tabs" aria-label="学期选择">
-          {schoolYear.terms.map((item) => (
-            <button key={item.id} type="button" className={item.id === term.id ? "active" : ""} onClick={() => setTermId(item.id)}>
-              {item.label}
-            </button>
-          ))}
-        </nav>
+      <header className="masthead">
+        <div className="masthead-top">
+          <a className="brand" href="/" aria-label="北大附中校历首页">
+            <span className="brand-mark">校历</span>
+            <span>
+              <strong>北大附中校历</strong>
+              <small>{schoolYear.label} · {schoolYear.division}</small>
+            </span>
+          </a>
+          <nav className="term-tabs" aria-label="学期选择">
+            {schoolYear.terms.map((item) => (
+              <button key={item.id} type="button" className={item.id === term.id ? "active" : ""} onClick={() => setTermId(item.id)}>
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+        <div className="masthead-main">
+          <div>
+            <p className="source-line">{scopeLine}</p>
+            <h1>北大附中校历</h1>
+          </div>
+          <div className="hero-stats" aria-label="当前校历统计">
+            <span>
+              <strong>{displayStats.events}</strong>
+              事件
+            </span>
+            <span>
+              <strong>{displayStats.exams}</strong>
+              考试
+            </span>
+            <span>
+              <strong>{displayStats.holidays}</strong>
+              假期
+            </span>
+          </div>
+        </div>
       </header>
-
-      <section className="hero-panel">
-        <div>
-          <p className="source-line">
-            {schoolYear.label} · {schoolYear.division} · {term.label}
-          </p>
-          <h1>北大附中校历</h1>
-        </div>
-        <div className="hero-stats" aria-label="当前校历统计">
-          <span>
-            <strong>{mode === "overview" ? overviewStats.events : stats.events}</strong>
-            事件
-          </span>
-          <span>
-            <strong>{mode === "overview" ? overviewStats.exams : stats.exams}</strong>
-            考试
-          </span>
-          <span>
-            <strong>{mode === "overview" ? overviewStats.holidays : stats.holidays}</strong>
-            假期
-          </span>
-        </div>
-      </section>
 
       <section className="workspace">
         <aside className="side-rail" aria-label="校历控制与近期事件">
@@ -219,6 +429,14 @@ export default function App() {
                 <CalendarRange size={16} />
                 概览
               </button>
+              <button type="button" className={mode === "termPreview" ? "active" : ""} onClick={() => setMode("termPreview")} aria-label="学期预览">
+                <CalendarRange size={16} />
+                学期
+              </button>
+              <button type="button" className={mode === "yearPreview" ? "active" : ""} onClick={() => setMode("yearPreview")} aria-label="年历预览">
+                <CalendarDays size={16} />
+                年历
+              </button>
             </div>
             <select value={selectedCategory} onChange={(event) => setSelectedCategory(event.target.value as EventCategory | "all")}>
               <option value="all">全部类型</option>
@@ -239,6 +457,30 @@ export default function App() {
             </div>
           </div>
 
+          <div className="upcoming-block today-block">
+            <div className="block-title">
+              <CalendarDays size={16} />
+              今日
+            </div>
+            <ol className="event-list">
+              {todayEvents.length > 0 ? (
+                todayEvents.map((item) => (
+                  <li key={item.id}>
+                    <button type="button" onClick={() => setSelectedEvent(item)}>
+                      <span className={`dot ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }} />
+                      <span>
+                        <strong>{displayEventTitle(item)}</strong>
+                        <small>{formatRange(item.date, item.endDate)}</small>
+                      </span>
+                    </button>
+                  </li>
+                ))
+              ) : (
+                <li className="empty-row">无</li>
+              )}
+            </ol>
+          </div>
+
           <div className="upcoming-block">
             <div className="block-title">
               <Sparkles size={16} />
@@ -249,9 +491,9 @@ export default function App() {
                 nextEvents.map((item) => (
                   <li key={item.id}>
                     <button type="button" onClick={() => setSelectedEvent(item)}>
-                      <span className={`dot ${categoryMeta[item.category].className}`} />
+                      <span className={`dot ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }} />
                       <span>
-                        <strong>{item.title}</strong>
+                        <strong>{displayEventTitle(item)}</strong>
                         <small>{formatRange(item.date, item.endDate)}</small>
                       </span>
                     </button>
@@ -292,8 +534,8 @@ export default function App() {
                     <div>
                       {items.map((item) => (
                         <button key={item.id} type="button" onClick={() => setSelectedEvent(item)}>
-                          <span className={`dot ${categoryMeta[item.category].className}`} />
-                          <strong>{item.title}</strong>
+                          <span className={`dot ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }} />
+                          <strong>{displayEventTitle(item)}</strong>
                           <small>{formatRange(item.date, item.endDate)}</small>
                         </button>
                       ))}
@@ -305,6 +547,26 @@ export default function App() {
               )}
             </div>
           </section>
+        ) : mode === "termPreview" ? (
+          <PreviewPanel
+            title="学期预览"
+            subtitle={`${term.label} · ${term.rangeLabel}`}
+            months={termMonths}
+            events={termPreviewEvents}
+            today={today}
+            emptyText={emptyText}
+            onSelectEvent={setSelectedEvent}
+          />
+        ) : mode === "yearPreview" ? (
+          <PreviewPanel
+            title="年历预览"
+            subtitle={`${schoolYear.label} · ${schoolYear.division}`}
+            months={fullYearMonths}
+            events={yearPreviewEvents}
+            today={today}
+            emptyText={emptyText}
+            onSelectEvent={setSelectedEvent}
+          />
         ) : (
           <section className="calendar-panel" aria-label={`${term.label}月历`}>
             <div className="calendar-toolbar">
@@ -329,8 +591,8 @@ export default function App() {
               plugins={[dayGridPlugin, listPlugin, interactionPlugin]}
               locale={zhCnLocale}
               timeZone="Asia/Shanghai"
-              initialView={mode}
-              initialDate={term.start}
+              initialView={calendarViewMode}
+              initialDate={defaultFocusDate}
               events={calendarEvents}
               eventClick={handleEventClick}
               datesSet={handleDatesSet}
@@ -346,27 +608,28 @@ export default function App() {
         )}
       </section>
 
-      <section className="timeline-section" aria-label="本学期事件索引">
-        <div className="section-heading">
-          <p>{term.focusMonths.join(" / ")}</p>
-          <h2>事件索引</h2>
-        </div>
+      <details className="timeline-section" aria-label="本学期事件索引">
+        <summary className="section-heading timeline-summary">
+          <span>
+            <p>{term.focusMonths.join(" / ")}</p>
+            <h2>事件索引</h2>
+          </span>
+          <span className="summary-count">{timelineEvents.length}项</span>
+        </summary>
         <div className="timeline-grid">
-          {important
-            .filter((item) => selectedCategory === "all" || item.category === selectedCategory)
-            .filter((item) => !normalizedQuery || `${item.title}${item.audience ?? ""}`.toLowerCase().includes(normalizedQuery))
-            .sort((a, b) => compareDateText(a.date, b.date))
-            .map((item) => (
-              <button key={item.id} className="timeline-card" type="button" onClick={() => setSelectedEvent(item)}>
-                <span className={`timeline-tag ${categoryMeta[item.category].className}`}>{categoryMeta[item.category].label}</span>
-                <strong>{item.title}</strong>
-                <small>{formatRange(item.date, item.endDate)}</small>
-                {item.audience ? <em>{item.audience}</em> : null}
-              </button>
-            ))}
-          {important.length === 0 ? <p className="empty-panel">{emptyText}</p> : null}
+          {timelineEvents.map((item) => (
+            <button key={item.id} className="timeline-card" type="button" onClick={() => setSelectedEvent(item)}>
+              <span className={`timeline-tag ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }}>
+                {categoryMeta[item.category].label}
+              </span>
+              <strong>{displayEventTitle(item)}</strong>
+              <small>{formatRange(item.date, item.endDate)}</small>
+              {item.audience ? <em>{item.audience}</em> : null}
+            </button>
+          ))}
+          {timelineEvents.length === 0 ? <p className="empty-panel">{emptyText}</p> : null}
         </div>
-      </section>
+      </details>
 
       <footer className="page-footer">
         <a href={schoolYear.source.url} target="_blank" rel="noreferrer">

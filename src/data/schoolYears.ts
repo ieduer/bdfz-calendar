@@ -301,9 +301,9 @@ const springCycleEvents: CalendarEvent[] = [
 const fallTerm: Term = {
   id: "fall",
   label: "第一学期",
-  rangeLabel: "2025.09 - 2026.02",
+  rangeLabel: "2025.09 - 2026.03",
   start: "2025-09-01",
-  end: "2026-02-01",
+  end: "2026-03-01",
   focusMonths: ["九月", "十月", "十一月", "十二月", "一月"],
   events: [
     event("fall-start", "开学", "2025-09-01", "ceremony"),
