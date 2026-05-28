@@ -2,6 +2,8 @@ import type { EventInput } from "@fullcalendar/core";
 import type { CalendarEvent, EventCategory, SchoolYear, Term } from "../types";
 import { compareDateText, toExclusiveEnd } from "./dates";
 
+const ICS_DTSTAMP = "20260528T000000Z";
+
 export const categoryMeta: Record<EventCategory, { label: string; className: string; color: string }> = {
   holiday: { label: "假期", className: "event-holiday", color: "#7ba398" },
   exam: { label: "考试", className: "event-exam", color: "#b8657f" },
@@ -70,7 +72,7 @@ const buildIcs = (calendarName: string, events: CalendarEvent[]): string => {
     lines.push(
       "BEGIN:VEVENT",
       `UID:${item.id}@cal.bdfz.net`,
-      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}`,
+      `DTSTAMP:${ICS_DTSTAMP}`,
       `DTSTART;VALUE=DATE:${start}`,
       `DTEND;VALUE=DATE:${end}`,
       `SUMMARY:${escapeIcs(item.title)}`,

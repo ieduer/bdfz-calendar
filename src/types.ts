@@ -36,7 +36,7 @@ export type SchoolYear = {
   yearId: string;
   divisionId: string;
   division: string;
-  status?: "complete" | "pending-source";
+  status?: "complete" | "partial-source" | "pending-source";
   activeTermId: Term["id"];
   source: {
     title: string;

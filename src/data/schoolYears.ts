@@ -444,6 +444,117 @@ const prepPlaceholderTerm = (id: Term["id"], label: string, rangeLabel: string, 
   events: []
 });
 
+const prepSpringCycleEvents: CalendarEvent[] = [
+  ...addCycleWeek("prep-spring", 0, [
+    ["2026-02-24", "答疑B"],
+    ["2026-02-25", "答疑C"],
+    ["2026-02-26", "答疑D"],
+    ["2026-02-27", "答疑E"],
+    ["2026-02-28", "答疑F"]
+  ]),
+  ...addCycleWeek("prep-spring", 1, [
+    ["2026-03-02", "A"],
+    ["2026-03-03", "B"],
+    ["2026-03-04", "C"],
+    ["2026-03-05", "D"],
+    ["2026-03-06", "E"],
+    ["2026-03-07", "F"]
+  ]),
+  ...addCycleWeek("prep-spring", 2, [
+    ["2026-03-09", "A"],
+    ["2026-03-10", "B"],
+    ["2026-03-11", "C"],
+    ["2026-03-12", "D"],
+    ["2026-03-13", "E"],
+    ["2026-03-14", "F"]
+  ]),
+  ...addCycleWeek("prep-spring", 3, [
+    ["2026-03-16", "A"],
+    ["2026-03-17", "B"],
+    ["2026-03-18", "C"],
+    ["2026-03-19", "D"],
+    ["2026-03-20", "E"]
+  ]),
+  ...addCycleWeek("prep-spring", 4, [
+    ["2026-03-23", "A"],
+    ["2026-03-24", "B"],
+    ["2026-03-25", "C"],
+    ["2026-03-26", "D"],
+    ["2026-03-27", "E"],
+    ["2026-03-28", "F"]
+  ]),
+  ...addCycleWeek("prep-spring", 5, [
+    ["2026-03-30", "A"],
+    ["2026-03-31", "B"],
+    ["2026-04-01", "C"],
+    ["2026-04-02", "D"],
+    ["2026-04-03", "E"]
+  ]),
+  ...addCycleWeek("prep-spring", 6, [
+    ["2026-04-06", "答疑A"],
+    ["2026-04-11", "拓展实践"]
+  ]),
+  ...addCycleWeek("prep-spring", 7, [
+    ["2026-04-13", "A"],
+    ["2026-04-14", "B"],
+    ["2026-04-15", "C"],
+    ["2026-04-16", "D"],
+    ["2026-04-17", "E"],
+    ["2026-04-18", "F"]
+  ]),
+  ...addCycleWeek("prep-spring", 8, [
+    ["2026-04-20", "A"],
+    ["2026-04-21", "B"],
+    ["2026-04-22", "C"],
+    ["2026-04-23", "D"],
+    ["2026-04-24", "E"],
+    ["2026-04-25", "F"]
+  ]),
+  ...addCycleWeek("prep-spring", 9, [
+    ["2026-04-27", "A"],
+    ["2026-04-28", "B"],
+    ["2026-04-29", "C"],
+    ["2026-04-30", "D"]
+  ]),
+  ...addCycleWeek("prep-spring", 10, [
+    ["2026-05-05", "答疑B"],
+    ["2026-05-11", "拍毕业照A"],
+    ["2026-05-12", "B"],
+    ["2026-05-13", "C"],
+    ["2026-05-14", "D"],
+    ["2026-05-15", "E"],
+    ["2026-05-16", "F"],
+    ["2026-05-18", "A"],
+    ["2026-05-19", "B"],
+    ["2026-05-20", "C"],
+    ["2026-05-21", "D"],
+    ["2026-05-22", "E"],
+    ["2026-05-23", "F"]
+  ])
+];
+
+const prepSpringTerm: Term = {
+  id: "spring",
+  label: "第二学期",
+  rangeLabel: "2026.02 - 2026.05（截图可见部分）",
+  start: "2026-02-24",
+  end: "2026-05-24",
+  focusMonths: ["二月", "三月", "四月", "五月"],
+  events: [
+    event("prep-spring-start", "开学", "2026-03-02", "ceremony"),
+    event("prep-spring-gaozhao-medical", "高招体检", "2026-03-04", "exam"),
+    event("prep-spring-speaking", "高考英语听说第二次考试", "2026-03-21", "exam"),
+    event("prep-spring-pe-exam", "高中体育学考", "2026-03-24", "exam", { endDate: "2026-03-30" }),
+    event("prep-spring-qingming", "清明节", "2026-04-04", "holiday", { endDate: "2026-04-05" }),
+    event("prep-spring-mock-1", "一模考试", "2026-04-07", "exam", { endDate: "2026-04-10" }),
+    event("prep-spring-outreach", "学生拓展实践", "2026-04-11", "activity"),
+    event("prep-spring-labor", "劳动节", "2026-05-01", "holiday", { endDate: "2026-05-04" }),
+    event("prep-spring-mock-2", "二模考试", "2026-05-06", "exam", { endDate: "2026-05-09" }),
+    event("prep-spring-graduation-photo", "毕业照", "2026-05-11", "activity"),
+    ...prepSpringCycleEvents
+  ]
+};
+
 const juniorSource = {
   title: "通知公告-北大附中初中部",
   url: "https://czpkuschool.pku.edu.cn/tzgg.htm",
@@ -612,12 +723,12 @@ export const SCHOOL_YEARS: SchoolYear[] = [
     yearId: "2025-2026",
     divisionId: "prep",
     division: "预科部",
-    status: "pending-source",
+    status: "partial-source",
     activeTermId: "spring",
     source,
     terms: [
       prepPlaceholderTerm("fall", "第一学期", "2025.09 - 2026.02", "2025-09-01", "2026-02-01"),
-      prepPlaceholderTerm("spring", "第二学期", "2026.03 - 2026.07", "2026-03-02", "2026-07-14")
+      prepSpringTerm
     ]
   },
   {

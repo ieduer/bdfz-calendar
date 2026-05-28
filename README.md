@@ -25,6 +25,22 @@ npm run build
 
 `npm run build` regenerates `public/feeds/*-all.ics` before Vite builds.
 
+## Yuque extraction
+
+Preferred path for logged-in Yuque sheets:
+
+```bash
+/bin/zsh scripts/extract-yuque-current-tab.zsh --browser chrome --sheet "25-26学年（预科部）" --out data/raw/yuque-2025-2026-prep.json
+```
+
+If Chrome blocks the extractor, enable:
+
+```text
+View -> Developer -> Allow JavaScript from Apple Events
+```
+
+The extractor reads only the active tab DOM through Apple Events. It does not read browser cookies, local storage, passwords, or profile databases. Keep raw extracts local unless reviewed.
+
 ## Deploy
 
 ```bash
@@ -49,11 +65,12 @@ curl -sS https://cal.bdfz.net/ | head
 ## Annual update workflow
 
 1. Open the current Yuque calendar in Brave.
-2. Copy the rendered spreadsheet text for the relevant school division.
-3. Add a new `SchoolYear` object in `src/data/schoolYears.ts`; do not replace or delete previous years.
-4. Set `ACTIVE_SCHOOL_YEAR_ID` to the active dataset id.
-5. Run `npm run build`.
-6. Deploy to the same Pages project.
+2. Run the Yuque extractor for each sheet tab, or copy the rendered spreadsheet text as fallback.
+3. Review the raw extract under `data/raw/`.
+4. Add a new `SchoolYear` object in `src/data/schoolYears.ts`; do not replace or delete previous years.
+5. Set `ACTIVE_SCHOOL_YEAR_ID` to the active dataset id.
+6. Run `npm run build`.
+7. Deploy to the same Pages project.
 
 Keep historical years in the data file unless there is a clear reason to remove them.
 
