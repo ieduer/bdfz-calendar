@@ -130,6 +130,24 @@ const eventAccentStyle = (event: CalendarEvent): EventAccentStyle => ({
   "--event-accent": eventColor(event)
 });
 
+type PanelLinksProps = {
+  sourceUrl: string;
+};
+
+function PanelLinks({ sourceUrl }: PanelLinksProps) {
+  return (
+    <div className="panel-links">
+      <a href={sourceUrl} target="_blank" rel="noreferrer">
+        数据源
+      </a>
+      <a href={GITHUB_ISSUE_URL} target="_blank" rel="noreferrer">
+        <ExternalLink size={14} />
+        官方改动？提交 GitHub issue
+      </a>
+    </div>
+  );
+}
+
 type SheetEventChipProps = {
   event: CalendarEvent;
   compact?: boolean;
@@ -233,11 +251,12 @@ type PreviewPanelProps = {
   events: CalendarEvent[];
   today: string;
   focusMonth: string;
+  sourceUrl: string;
   emptyText: string;
   onJumpToEvent: (event: CalendarEvent) => void;
 };
 
-function PreviewPanel({ title, subtitle, months, events, today, focusMonth, emptyText, onJumpToEvent }: PreviewPanelProps) {
+function PreviewPanel({ title, subtitle, months, events, today, focusMonth, sourceUrl, emptyText, onJumpToEvent }: PreviewPanelProps) {
   const sheetScrollRef = useRef<HTMLDivElement | null>(null);
   const eventsByDate = useMemo(() => buildEventsByDate(events), [events]);
 
@@ -278,12 +297,14 @@ function PreviewPanel({ title, subtitle, months, events, today, focusMonth, empt
       ) : (
         <p className="empty-panel">{emptyText}</p>
       )}
+      <PanelLinks sourceUrl={sourceUrl} />
     </section>
   );
 }
 
 export default function App() {
   const calendarRef = useRef<FullCalendar | null>(null);
+  const overviewScrollRef = useRef<HTMLDivElement | null>(null);
   const initialSchoolYear = findCalendar(ACTIVE_SCHOOL_YEAR_ID);
   const [calendarId, setCalendarId] = useState(ACTIVE_SCHOOL_YEAR_ID);
   const [termId, setTermId] = useState<Term["id"]>(() => preferredTermId(initialSchoolYear, localTodayText()));
@@ -376,6 +397,7 @@ export default function App() {
   }, [filteredYearEvents]);
   const isYearScope = mode === "overview" || mode === "yearPreview";
   const displayStats = isYearScope ? overviewStats : stats;
+  const overviewFocusMonth = overviewMonths.some(([month]) => month === todayMonth) ? todayMonth : overviewMonths[0]?.[0] ?? todayMonth;
 
   useEffect(() => {
     const api = calendarRef.current?.getApi();
@@ -395,6 +417,25 @@ export default function App() {
     if (!api || !isFullCalendarMode(mode) || !firstMatch || !query.trim()) return;
     api.gotoDate(firstMatch.date);
   }, [filteredEvents, mode, query]);
+
+  useEffect(() => {
+    if (mode !== "overview") return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const scroller = overviewScrollRef.current;
+      if (!scroller) return;
+
+      const target = scroller.querySelector<HTMLElement>(`[data-month="${overviewFocusMonth}"]`);
+      if (!target) return;
+
+      scroller.scrollTo({
+        top: Math.max(target.offsetTop - scroller.offsetTop - 6, 0),
+        behavior: "auto"
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [mode, overviewFocusMonth, overviewMonths]);
 
   useEffect(
     () => () => {
@@ -467,7 +508,7 @@ export default function App() {
   const emptyText = schoolYear.status === "pending-source" ? "待补录" : "没有匹配事件";
 
   return (
-    <main className="page-shell">
+    <main className={`page-shell ${mode === "dayGridMonth" ? "month-page" : ""}`}>
       <div className="watercolor-bg" aria-hidden="true" />
       <header className="masthead">
         <div className="masthead-top">
@@ -623,10 +664,10 @@ export default function App() {
                 );
               })}
             </div>
-            <div className="month-overview">
+            <div className="month-overview" ref={overviewScrollRef}>
               {overviewMonths.length > 0 ? (
                 overviewMonths.map(([month, items]) => (
-                  <section key={month} className="month-row">
+                  <section key={month} className="month-row" data-month={month}>
                     <h3>{month}</h3>
                     <div>
                       {items.map((item) => (
@@ -643,6 +684,7 @@ export default function App() {
                 <p className="empty-panel">{emptyText}</p>
               )}
             </div>
+            <PanelLinks sourceUrl={schoolYear.source.url} />
           </section>
         ) : mode === "termPreview" ? (
           <PreviewPanel
@@ -652,6 +694,7 @@ export default function App() {
             events={termPreviewEvents}
             today={today}
             focusMonth={termPreviewFocusMonth}
+            sourceUrl={schoolYear.source.url}
             emptyText={emptyText}
             onJumpToEvent={jumpToEvent}
           />
@@ -663,6 +706,7 @@ export default function App() {
             events={yearPreviewEvents}
             today={today}
             focusMonth={yearPreviewFocusMonth}
+            sourceUrl={schoolYear.source.url}
             emptyText={emptyText}
             onJumpToEvent={jumpToEvent}
           />
@@ -703,19 +747,10 @@ export default function App() {
               fixedWeekCount={false}
               noEventsText={emptyText}
             />
+            <PanelLinks sourceUrl={schoolYear.source.url} />
           </section>
         )}
       </section>
-
-      <footer className="page-footer">
-        <a href={schoolYear.source.url} target="_blank" rel="noreferrer">
-          数据源
-        </a>
-        <a href={GITHUB_ISSUE_URL} target="_blank" rel="noreferrer">
-          <ExternalLink size={14} />
-          官方改动？提交 GitHub issue
-        </a>
-      </footer>
 
       <EventSheet event={selectedEvent} onClose={() => setSelectedEvent(null)} />
     </main>

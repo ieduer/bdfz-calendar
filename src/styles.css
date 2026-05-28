@@ -216,8 +216,7 @@ button {
 }
 
 .masthead,
-.workspace,
-.page-footer {
+.workspace {
   width: min(1360px, 100%);
   margin-inline: auto;
 }
@@ -301,6 +300,25 @@ h1 {
   align-self: stretch;
 }
 
+.month-page {
+  padding-top: 12px;
+  padding-bottom: 4px;
+}
+
+.month-page .masthead {
+  margin-bottom: 10px;
+  padding: 10px 14px;
+}
+
+.month-page .brand-mark {
+  width: 40px;
+  height: 40px;
+}
+
+.month-page .workspace {
+  gap: 12px;
+}
+
 .side-rail,
 .calendar-panel,
 .overview-panel,
@@ -312,6 +330,13 @@ h1 {
   box-shadow: var(--shadow-soft);
 }
 
+.calendar-panel,
+.overview-panel,
+.preview-panel {
+  display: flex;
+  flex-direction: column;
+}
+
 .side-rail {
   position: sticky;
   top: 22px;
@@ -320,9 +345,18 @@ h1 {
   padding: 18px;
 }
 
+.month-page .side-rail {
+  gap: 10px;
+  padding: 12px;
+}
+
 .control-block {
   display: grid;
   gap: 10px;
+}
+
+.month-page .control-block {
+  gap: 8px;
 }
 
 .select-grid {
@@ -361,6 +395,12 @@ h1 {
   border: 1px solid var(--monet-border);
   border-radius: 8px;
   background: rgba(255, 253, 247, 0.74);
+}
+
+.month-page .search-box,
+.month-page .search-box input,
+.month-page .control-block select {
+  min-height: 36px;
 }
 
 .view-switch {
@@ -409,12 +449,21 @@ h1 {
   font-weight: 700;
 }
 
+.month-page .block-title {
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
 .event-list {
   display: grid;
   gap: 8px;
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+.month-page .event-list {
+  gap: 5px;
 }
 
 .event-list button {
@@ -431,6 +480,11 @@ h1 {
   background: rgba(255, 253, 247, 0.5);
 }
 
+.month-page .event-list button {
+  gap: 8px;
+  padding: 6px 8px;
+}
+
 .event-list strong,
 .event-list small {
   display: block;
@@ -441,11 +495,20 @@ h1 {
   font-weight: 600;
 }
 
+.month-page .event-list strong {
+  font-size: 12.5px;
+}
+
 .event-list small {
   margin-top: 3px;
   color: var(--monet-muted);
   font-family: var(--font-ui);
   font-size: 12px;
+}
+
+.month-page .event-list small {
+  margin-top: 1px;
+  font-size: 11px;
 }
 
 .dot {
@@ -456,9 +519,17 @@ h1 {
   background: currentColor;
 }
 
+.month-page .dot {
+  margin-top: 5px;
+}
+
 .calendar-panel {
   min-width: 0;
   padding: 18px;
+}
+
+.month-page .calendar-panel {
+  padding: 12px;
 }
 
 .overview-panel {
@@ -502,6 +573,10 @@ h1 {
 .month-overview {
   display: grid;
   gap: 12px;
+  max-height: calc(100vh - 318px);
+  overflow: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
 }
 
 .month-row {
@@ -742,15 +817,40 @@ h1 {
   margin-bottom: 16px;
 }
 
+.month-page .calendar-toolbar {
+  margin-bottom: 8px;
+}
+
 .calendar-toolbar h2 {
   color: #385b55;
   font-size: clamp(24px, 3vw, 38px);
   line-height: 1.1;
 }
 
+.month-page .calendar-toolbar h2 {
+  font-size: clamp(22px, 2.5vw, 30px);
+}
+
 .calendar-nav button {
   font-family: var(--font-ui);
   font-size: 13px;
+}
+
+.month-page .calendar-nav button,
+.month-page .term-tabs button,
+.month-page .view-switch button,
+.month-page .export-button {
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.month-page .hero-stats span {
+  min-height: 34px;
+  padding: 5px 8px;
+}
+
+.month-page .hero-stats strong {
+  font-size: 20px;
 }
 
 .fc {
@@ -778,12 +878,23 @@ h1 {
   min-height: 112px;
 }
 
+.month-page .fc .fc-daygrid-day-frame {
+  min-height: 70px;
+}
+
 .fc .fc-event {
   border: 0;
   border-radius: 6px;
   padding: 1px 4px;
   font-size: 12px;
   line-height: 1.35;
+}
+
+.month-page .fc .fc-event {
+  border-radius: 4px;
+  padding: 0 3px;
+  font-size: 10.5px;
+  line-height: 1.12;
 }
 
 .fc .fc-daygrid-event,
@@ -800,6 +911,16 @@ h1 {
 
 .fc .fc-daygrid-event-harness {
   margin-top: 2px;
+}
+
+.month-page .fc .fc-daygrid-event-harness {
+  margin-top: 1px;
+}
+
+.month-page .fc .fc-col-header-cell-cushion,
+.month-page .fc .fc-daygrid-day-number {
+  padding: 2px;
+  font-size: 12px;
 }
 
 .fc .event-jump-highlight {
@@ -900,17 +1021,26 @@ h1 {
   font-size: clamp(25px, 3.5vw, 42px);
 }
 
-.page-footer {
+.panel-links {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
+  align-items: center;
   gap: 14px;
-  padding: 16px 2px 0;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--monet-border-soft);
   color: var(--monet-muted);
   font-family: var(--font-ui);
   font-size: 12px;
 }
 
-.page-footer a {
+.month-page .panel-links {
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: 11px;
+}
+
+.panel-links a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1102,7 +1232,7 @@ h1 {
     font-size: 12px;
   }
 
-  .page-footer {
+  .panel-links {
     flex-direction: column;
   }
 }
