@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import listPlugin from "@fullcalendar/list";
@@ -110,6 +111,21 @@ const buildEventsByDate = (events: CalendarEvent[]): Map<string, CalendarEvent[]
   return buckets;
 };
 
+const chunkWeeks = (cells: MonthCell[]): MonthCell[][] => {
+  const weeks: MonthCell[][] = [];
+  for (let index = 0; index < cells.length; index += 7) {
+    weeks.push(cells.slice(index, index + 7));
+  }
+  return weeks;
+};
+
+const monthName = (month: string): string => `${Number(month.slice(5, 7))}月`;
+
+const sheetDateLabel = (cell: MonthCell): string => {
+  if (!cell.date || !cell.day) return "";
+  return cell.day === 1 ? `${Number(cell.date.slice(5, 7))}月1日` : `${cell.day}.`;
+};
+
 const countMonthEvents = (month: string, eventsByDate: Map<string, CalendarEvent[]>): number => {
   const ids = new Set<string>();
   Array.from(eventsByDate.entries()).forEach(([date, items]) => {
@@ -118,71 +134,107 @@ const countMonthEvents = (month: string, eventsByDate: Map<string, CalendarEvent
   return ids.size;
 };
 
-type MiniMonthProps = {
+const sortDayEvents = (items: CalendarEvent[]): CalendarEvent[] =>
+  [...items].sort((a, b) => Number(a.category === "cycle") - Number(b.category === "cycle") || displayEventTitle(a).localeCompare(displayEventTitle(b)));
+
+type EventAccentStyle = CSSProperties & { "--event-accent": string };
+
+const eventAccentStyle = (event: CalendarEvent): EventAccentStyle => ({
+  "--event-accent": eventColor(event)
+});
+
+type SheetEventChipProps = {
+  event: CalendarEvent;
+  compact?: boolean;
+  onJumpToEvent: (event: CalendarEvent) => void;
+};
+
+function SheetEventChip({ event, compact = false, onJumpToEvent }: SheetEventChipProps) {
+  const eventClasses = eventClassNames(event);
+  const className = [
+    "sheet-event-chip",
+    `sheet-category-${event.category}`,
+    event.category === "cycle" ? "is-cycle" : "",
+    eventClasses.includes("event-cycle-irregular") ? "is-irregular" : "",
+    compact ? "compact" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <button type="button" className={className} style={eventAccentStyle(event)} onClick={() => onJumpToEvent(event)}>
+      <span className="sheet-event-dot" aria-hidden="true" />
+      <span>{displayEventTitle(event)}</span>
+    </button>
+  );
+}
+
+type SheetDayCellProps = {
+  cell: MonthCell;
+  eventsByDate: Map<string, CalendarEvent[]>;
+  isFirstWeek?: boolean;
+  today: string;
+  onJumpToEvent: (event: CalendarEvent) => void;
+};
+
+function SheetDayCell({ cell, eventsByDate, isFirstWeek = false, today, onJumpToEvent }: SheetDayCellProps) {
+  if (!cell.date) return <div className="sheet-day-cell empty" aria-hidden="true" />;
+
+  const dayEvents = sortDayEvents(eventsByDate.get(cell.date) ?? []);
+  const className = [
+    "sheet-day-cell",
+    isFirstWeek ? "is-first-week" : "",
+    dayEvents.length > 0 ? "has-events" : "",
+    cell.date === today ? "is-today" : "",
+    cell.weekday === 6 ? "is-saturday" : "",
+    cell.weekday === 7 ? "is-sunday" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className={className} aria-label={`${cell.date}${dayEvents.length ? ` ${dayEvents.map(displayEventTitle).join(" ")}` : ""}`}>
+      <span className="sheet-date-number">{sheetDateLabel(cell)}</span>
+      <div className="sheet-day-events">
+        {dayEvents.map((event) => (
+          <SheetEventChip key={`${cell.date}-${event.id}`} event={event} compact onJumpToEvent={onJumpToEvent} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type SheetMonthProps = {
   month: string;
   eventsByDate: Map<string, CalendarEvent[]>;
   today: string;
-  onSelectEvent: (event: CalendarEvent) => void;
+  onJumpToEvent: (event: CalendarEvent) => void;
 };
 
-function MiniMonth({ month, eventsByDate, today, onSelectEvent }: MiniMonthProps) {
+function SheetMonth({ month, eventsByDate, today, onJumpToEvent }: SheetMonthProps) {
   const cells = useMemo(() => buildMonthCells(month), [month]);
+  const weeks = useMemo(() => chunkWeeks(cells), [cells]);
   const eventCount = countMonthEvents(month, eventsByDate);
 
   return (
-    <section className="mini-month" aria-label={`${monthLabel(month)}预览`}>
-      <div className="mini-month-header">
+    <section className="sheet-month" aria-label={`${monthLabel(month)}预览`}>
+      <div className="sheet-month-title">
         <strong>{monthLabel(month)}</strong>
         <span>{eventCount > 0 ? `${eventCount}项` : ""}</span>
       </div>
-      <div className="mini-weekdays" aria-hidden="true">
-        {WEEKDAYS.map((day) => (
-          <span key={day}>{day}</span>
-        ))}
+      <div className="sheet-month-label" style={{ gridRow: `span ${weeks.length}` }}>
+        {monthName(month)}
       </div>
-      <div className="mini-days">
-        {cells.map((cell, index) => {
-          if (!cell.date) return <span key={`empty-${index}`} className="mini-day empty" aria-hidden="true" />;
-
-          const dayEvents = eventsByDate.get(cell.date) ?? [];
-          const mainEvent = dayEvents.find((item) => item.category !== "cycle") ?? dayEvents[0];
-          const className = [
-            "mini-day",
-            dayEvents.length > 0 ? "has-events" : "",
-            cell.date === today ? "is-today" : "",
-            cell.weekday === 6 ? "is-saturday" : "",
-            cell.weekday === 7 ? "is-sunday" : ""
-          ]
-            .filter(Boolean)
-            .join(" ");
-
-          if (!mainEvent) {
-            return (
-              <span key={cell.date} className={className}>
-                <span>{cell.day}</span>
-              </span>
-            );
-          }
-
-          return (
-            <button
-              key={cell.date}
-              type="button"
-              className={className}
-              title={`${cell.date} ${dayEvents.map(displayEventTitle).join(" / ")}`}
-              aria-label={`${cell.date} ${displayEventTitle(mainEvent)}`}
-              onClick={() => onSelectEvent(mainEvent)}
-            >
-              <span>{cell.day}</span>
-              <span className="mini-dots" aria-hidden="true">
-                {dayEvents.slice(0, 3).map((item) => (
-                  <i key={`${cell.date}-${item.id}`} className={eventClassNames(item).join(" ")} style={{ backgroundColor: eventColor(item) }} />
-                ))}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {cells.map((cell, index) => (
+        <SheetDayCell
+          key={cell.date ?? `${month}-${index}`}
+          cell={cell}
+          eventsByDate={eventsByDate}
+          isFirstWeek={index < 7}
+          today={today}
+          onJumpToEvent={onJumpToEvent}
+        />
+      ))}
     </section>
   );
 }
@@ -194,22 +246,28 @@ type PreviewPanelProps = {
   events: CalendarEvent[];
   today: string;
   emptyText: string;
-  onSelectEvent: (event: CalendarEvent) => void;
+  onJumpToEvent: (event: CalendarEvent) => void;
 };
 
-function PreviewPanel({ title, subtitle, months, events, today, emptyText, onSelectEvent }: PreviewPanelProps) {
+function PreviewPanel({ title, subtitle, months, events, today, emptyText, onJumpToEvent }: PreviewPanelProps) {
   const eventsByDate = useMemo(() => buildEventsByDate(events), [events]);
 
   return (
-    <section className="preview-panel" aria-label={title}>
+    <section className="preview-panel sheet-preview-panel" aria-label={title}>
       <div className="section-heading">
         <p>{subtitle}</p>
         <h2>{title}</h2>
       </div>
-      {months.length > 0 && events.length > 0 ? (
-        <div className="preview-month-grid">
+      {months.length > 0 ? (
+        <div className="sheet-scroll">
+          <div className="sheet-week sheet-week-header" aria-hidden="true">
+            <span>月</span>
+            {WEEKDAYS.map((day) => (
+              <span key={day}>周{day}</span>
+            ))}
+          </div>
           {months.map((month) => (
-            <MiniMonth key={month} month={month} eventsByDate={eventsByDate} today={today} onSelectEvent={onSelectEvent} />
+            <SheetMonth key={month} month={month} eventsByDate={eventsByDate} today={today} onJumpToEvent={onJumpToEvent} />
           ))}
         </div>
       ) : (
@@ -228,7 +286,10 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | "all">("all");
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [pendingJump, setPendingJump] = useState<CalendarEvent | null>(null);
+  const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
   const [rangeTitle, setRangeTitle] = useState("");
+  const highlightTimeoutRef = useRef<number | undefined>(undefined);
 
   const schoolYear = findCalendar(calendarId);
   const divisionsForYear = SCHOOL_YEARS.filter((item) => item.yearId === schoolYear.yearId);
@@ -253,9 +314,23 @@ export default function App() {
   const eventById = useMemo(() => new Map(term.events.map((item) => [item.id, item])), [term.events]);
 
   const filteredEvents = useMemo(() => term.events.filter(matchesFilters), [normalizedQuery, selectedCategory, term.events]);
-  const calendarEvents = useMemo(() => filteredEvents.map(toFullCalendarEvent), [filteredEvents]);
+  const calendarEvents = useMemo(
+    () =>
+      filteredEvents.map((item) => {
+        const eventInput = toFullCalendarEvent(item);
+        if (item.id === highlightedEventId) {
+          const classes = eventInput.className;
+          if (Array.isArray(classes)) {
+            eventInput.className = [...classes, "event-jump-highlight"];
+          } else {
+            eventInput.className = classes ? [classes, "event-jump-highlight"] : ["event-jump-highlight"];
+          }
+        }
+        return eventInput;
+      }),
+    [filteredEvents, highlightedEventId]
+  );
   const termPreviewEvents = filteredEvents;
-  const important = useMemo(() => importantEvents(term.events), [term.events]);
   const nextEvents = useMemo(() => upcomingEvents(term, today, 7), [term, today]);
   const todayEvents = useMemo(
     () =>
@@ -298,14 +373,6 @@ export default function App() {
   const isYearScope = mode === "overview" || mode === "yearPreview";
   const displayStats = isYearScope ? overviewStats : stats;
   const scopeLine = isYearScope ? `${schoolYear.label} · ${schoolYear.division}` : `${schoolYear.label} · ${schoolYear.division} · ${term.label}`;
-  const timelineEvents = useMemo(
-    () =>
-      important
-        .filter((item) => selectedCategory === "all" || item.category === selectedCategory)
-        .filter((item) => !normalizedQuery || `${displayEventTitle(item)}${item.audience ?? ""}`.toLowerCase().includes(normalizedQuery))
-        .sort((a, b) => compareDateText(a.date, b.date)),
-    [important, normalizedQuery, selectedCategory]
-  );
 
   useEffect(() => {
     const api = calendarRef.current?.getApi();
@@ -326,6 +393,36 @@ export default function App() {
     api.gotoDate(firstMatch.date);
   }, [filteredEvents, mode, query, selectedCategory]);
 
+  useEffect(
+    () => () => {
+      if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!pendingJump || !isFullCalendarMode(mode)) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const api = calendarRef.current?.getApi();
+      if (!api) return;
+
+      api.changeView("dayGridMonth");
+      api.gotoDate(pendingJump.date);
+      document.querySelector(".calendar-panel")?.scrollIntoView({ block: "start", behavior: "smooth" });
+      setHighlightedEventId(pendingJump.id);
+      setPendingJump(null);
+
+      if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = window.setTimeout(() => {
+        setHighlightedEventId(null);
+        highlightTimeoutRef.current = undefined;
+      }, 2600);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [mode, pendingJump]);
+
   const calendarApi = (): CalendarApi | undefined => calendarRef.current?.getApi();
 
   const handleEventClick = (click: EventClickArg) => {
@@ -335,6 +432,22 @@ export default function App() {
 
   const handleDatesSet = (arg: DatesSetArg) => {
     setRangeTitle(arg.view.title);
+  };
+
+  const jumpToEvent = (item: CalendarEvent) => {
+    const nextTerm =
+      schoolYear.terms.find((candidate) => candidate.events.some((event) => event.id === item.id)) ??
+      schoolYear.terms.find((candidate) => dateInRange(item.date, candidate.start, candidate.end));
+
+    if (nextTerm && nextTerm.id !== term.id) setTermId(nextTerm.id);
+    if (!matchesFilters(item)) {
+      setSelectedCategory("all");
+      setQuery("");
+    }
+
+    setSelectedEvent(null);
+    setMode("dayGridMonth");
+    setPendingJump(item);
   };
 
   const switchYear = (yearId: string) => {
@@ -466,7 +579,7 @@ export default function App() {
               {todayEvents.length > 0 ? (
                 todayEvents.map((item) => (
                   <li key={item.id}>
-                    <button type="button" onClick={() => setSelectedEvent(item)}>
+                    <button type="button" onClick={() => jumpToEvent(item)}>
                       <span className={`dot ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }} />
                       <span>
                         <strong>{displayEventTitle(item)}</strong>
@@ -490,7 +603,7 @@ export default function App() {
               {nextEvents.length > 0 ? (
                 nextEvents.map((item) => (
                   <li key={item.id}>
-                    <button type="button" onClick={() => setSelectedEvent(item)}>
+                    <button type="button" onClick={() => jumpToEvent(item)}>
                       <span className={`dot ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }} />
                       <span>
                         <strong>{displayEventTitle(item)}</strong>
@@ -533,7 +646,7 @@ export default function App() {
                     <h3>{month}</h3>
                     <div>
                       {items.map((item) => (
-                        <button key={item.id} type="button" onClick={() => setSelectedEvent(item)}>
+                        <button key={item.id} type="button" onClick={() => jumpToEvent(item)}>
                           <span className={`dot ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }} />
                           <strong>{displayEventTitle(item)}</strong>
                           <small>{formatRange(item.date, item.endDate)}</small>
@@ -555,7 +668,7 @@ export default function App() {
             events={termPreviewEvents}
             today={today}
             emptyText={emptyText}
-            onSelectEvent={setSelectedEvent}
+            onJumpToEvent={jumpToEvent}
           />
         ) : mode === "yearPreview" ? (
           <PreviewPanel
@@ -565,7 +678,7 @@ export default function App() {
             events={yearPreviewEvents}
             today={today}
             emptyText={emptyText}
-            onSelectEvent={setSelectedEvent}
+            onJumpToEvent={jumpToEvent}
           />
         ) : (
           <section className="calendar-panel" aria-label={`${term.label}月历`}>
@@ -598,7 +711,7 @@ export default function App() {
               datesSet={handleDatesSet}
               headerToolbar={false}
               height="auto"
-              dayMaxEventRows={4}
+              dayMaxEventRows={false}
               eventDisplay="block"
               firstDay={1}
               fixedWeekCount={false}
@@ -607,29 +720,6 @@ export default function App() {
           </section>
         )}
       </section>
-
-      <details className="timeline-section" aria-label="本学期事件索引">
-        <summary className="section-heading timeline-summary">
-          <span>
-            <p>{term.focusMonths.join(" / ")}</p>
-            <h2>事件索引</h2>
-          </span>
-          <span className="summary-count">{timelineEvents.length}项</span>
-        </summary>
-        <div className="timeline-grid">
-          {timelineEvents.map((item) => (
-            <button key={item.id} className="timeline-card" type="button" onClick={() => setSelectedEvent(item)}>
-              <span className={`timeline-tag ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }}>
-                {categoryMeta[item.category].label}
-              </span>
-              <strong>{displayEventTitle(item)}</strong>
-              <small>{formatRange(item.date, item.endDate)}</small>
-              {item.audience ? <em>{item.audience}</em> : null}
-            </button>
-          ))}
-          {timelineEvents.length === 0 ? <p className="empty-panel">{emptyText}</p> : null}
-        </div>
-      </details>
 
       <footer className="page-footer">
         <a href={schoolYear.source.url} target="_blank" rel="noreferrer">
