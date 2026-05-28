@@ -26,6 +26,8 @@ npm run build
 
 `npm run audit:data` checks date ranges, cycle-day circled numbers, shifted A-E/F days, and partial-source freshness. `npm run build` regenerates `public/feeds/*-all.ics` before Vite builds.
 
+Operational details, annual update rules, Yuque extraction, data audit policy, feed handling, deploy checks, and rollback are documented in `docs/MAINTENANCE_MANUAL.md`.
+
 ## Yuque extraction
 
 Preferred path for logged-in Yuque sheets:
