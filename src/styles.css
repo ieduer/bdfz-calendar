@@ -95,8 +95,8 @@ button {
   position: relative;
   z-index: 10;
   width: min(1360px, 100%);
-  margin: 0 auto 18px;
-  padding: clamp(14px, 2.4vw, 24px);
+  margin: 0 auto 14px;
+  padding: clamp(12px, 1.8vw, 18px);
   border: 1px solid var(--monet-border);
   border-radius: 8px;
   background:
@@ -112,16 +112,6 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding-bottom: clamp(12px, 2vw, 18px);
-  border-bottom: 1px solid var(--monet-border-soft);
-}
-
-.masthead-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 20px;
-  align-items: end;
-  padding-top: clamp(18px, 3vw, 32px);
 }
 
 .brand {
@@ -175,6 +165,14 @@ button {
 .term-tabs {
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.term-strip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
 }
 
 .term-tabs button,
@@ -255,29 +253,32 @@ h1 {
 }
 
 .hero-stats {
-  display: grid;
+  display: inline-grid;
   grid-template-columns: repeat(3, minmax(92px, 1fr));
-  gap: 10px;
+  gap: 6px;
 }
 
 .hero-stats span {
-  min-width: 96px;
-  padding: 14px 13px;
+  min-width: 76px;
+  min-height: 38px;
+  padding: 6px 9px;
   border: 1px solid var(--monet-border-soft);
   border-radius: 8px;
   background: rgba(255, 253, 247, 0.56);
   color: var(--monet-muted);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1.05;
 }
 
 .hero-stats strong {
-  display: block;
+  display: inline-block;
+  margin-right: 4px;
   color: var(--monet-water-deep);
   font-family: var(--font-main);
-  font-size: 30px;
+  font-size: 22px;
   font-weight: 500;
-  line-height: 1;
+  line-height: 0.9;
 }
 
 .workspace {
@@ -351,7 +352,7 @@ h1 {
 
 .view-switch {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .view-switch button,
@@ -753,9 +754,7 @@ h1 {
 }
 
 .fc .fc-col-header-cell-cushion,
-.fc .fc-daygrid-day-number,
-.fc .fc-list-day-text,
-.fc .fc-list-day-side-text {
+.fc .fc-daygrid-day-number {
   color: var(--monet-water-deep);
   text-decoration: none;
 }
@@ -837,68 +836,42 @@ h1 {
   color: #b86f7d;
 }
 
-.fc .fc-list-day.fc-day-sat th {
-  background: rgba(185, 206, 224, 0.2);
-}
-
-.fc .fc-list-day.fc-day-sun th {
-  background: rgba(216, 180, 196, 0.2);
-}
-
-.fc .fc-list-day.fc-day-sat .fc-list-day-text,
-.fc .fc-list-day.fc-day-sat .fc-list-day-side-text {
-  color: #5f86b3;
-}
-
-.fc .fc-list-day.fc-day-sun .fc-list-day-text,
-.fc .fc-list-day.fc-day-sun .fc-list-day-side-text {
-  color: #b86f7d;
-}
-
-.event-holiday,
-.event-holiday .fc-list-event-dot {
+.event-holiday {
   background-color: #7ba398;
   border-color: #7ba398;
 }
 
-.event-exam,
-.event-exam .fc-list-event-dot {
+.event-exam {
   background-color: #b8657f;
   border-color: #b8657f;
 }
 
-.event-activity,
-.event-activity .fc-list-event-dot {
+.event-activity {
   background-color: #c9a76b;
   border-color: #c9a76b;
 }
 
-.event-sports,
-.event-sports .fc-list-event-dot {
+.event-sports {
   background-color: #6f8d9f;
   border-color: #6f8d9f;
 }
 
-.event-ceremony,
-.event-ceremony .fc-list-event-dot {
+.event-ceremony {
   background-color: #8f80a8;
   border-color: #8f80a8;
 }
 
-.event-practice,
-.event-practice .fc-list-event-dot {
+.event-practice {
   background-color: #547f74;
   border-color: #547f74;
 }
 
-.event-cleanup,
-.event-cleanup .fc-list-event-dot {
+.event-cleanup {
   background-color: #9a8b72;
   border-color: #9a8b72;
 }
 
-.event-note,
-.event-note .fc-list-event-dot {
+.event-note {
   background-color: #7a8a92;
   border-color: #7a8a92;
 }
@@ -1007,7 +980,6 @@ h1 {
     width: 100%;
   }
 
-  .masthead-main,
   .workspace {
     grid-template-columns: 1fr;
   }
@@ -1037,22 +1009,18 @@ h1 {
     gap: 12px;
   }
 
-  .masthead-main {
-    padding-top: 16px;
-  }
-
   .brand strong {
     font-size: 18px;
+  }
+
+  .term-strip {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .term-tabs {
     display: grid;
     grid-template-columns: 1fr 1fr;
-  }
-
-  h1 {
-    font-size: clamp(31px, 11vw, 44px);
-    line-height: 1.05;
   }
 
   .hero-stats {
@@ -1061,11 +1029,11 @@ h1 {
 
   .hero-stats span {
     min-width: 0;
-    padding: 11px 9px;
+    padding: 8px 9px;
   }
 
   .hero-stats strong {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .side-rail {

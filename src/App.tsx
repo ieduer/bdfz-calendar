@@ -2,11 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
 import zhCnLocale from "@fullcalendar/core/locales/zh-cn";
 import type { CalendarApi, DatesSetArg, EventClickArg } from "@fullcalendar/core";
-import { CalendarDays, CalendarRange, ExternalLink, ListFilter, Rss, Search, Sparkles } from "lucide-react";
+import { CalendarDays, CalendarRange, ExternalLink, Rss, Search, Sparkles } from "lucide-react";
 import { ACTIVE_SCHOOL_YEAR_ID, SCHOOL_YEARS } from "./data/schoolYears";
 import type { CalendarEvent, EventCategory, SchoolYear, Term } from "./types";
 import {
@@ -23,7 +22,7 @@ import { addDays, compareDateText, formatRange, localTodayText } from "./lib/dat
 import { EventSheet } from "./components/EventSheet";
 import "./styles.css";
 
-type FullCalendarMode = "dayGridMonth" | "listMonth";
+type FullCalendarMode = "dayGridMonth";
 type CalendarMode = FullCalendarMode | "overview" | "termPreview" | "yearPreview";
 type MonthCell = { date?: string; day?: number; weekday?: number };
 
@@ -50,7 +49,7 @@ const findCalendar = (calendarId: string) =>
   SCHOOL_YEARS.find((item) => item.id === calendarId) ?? SCHOOL_YEARS.find((item) => item.id === ACTIVE_SCHOOL_YEAR_ID) ?? SCHOOL_YEARS[0];
 
 const getOrigin = () => (typeof window === "undefined" ? "https://cal.bdfz.net" : window.location.origin);
-const isFullCalendarMode = (mode: CalendarMode): mode is FullCalendarMode => mode === "dayGridMonth" || mode === "listMonth";
+const isFullCalendarMode = (mode: CalendarMode): mode is FullCalendarMode => mode === "dayGridMonth";
 const dateInRange = (date: string, start: string, end: string): boolean => date >= start && date <= end;
 const preferredTermId = (schoolYear: SchoolYear, date: string): Term["id"] =>
   schoolYear.terms.find((item) => dateInRange(date, item.start, item.end))?.id ?? schoolYear.activeTermId;
@@ -282,7 +281,7 @@ export default function App() {
   const initialSchoolYear = findCalendar(ACTIVE_SCHOOL_YEAR_ID);
   const [calendarId, setCalendarId] = useState(ACTIVE_SCHOOL_YEAR_ID);
   const [termId, setTermId] = useState<Term["id"]>(() => preferredTermId(initialSchoolYear, localTodayText()));
-  const [mode, setMode] = useState<CalendarMode>(() => (window.innerWidth < 720 ? "listMonth" : "dayGridMonth"));
+  const [mode, setMode] = useState<CalendarMode>("dayGridMonth");
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | "all">("all");
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -294,7 +293,6 @@ export default function App() {
   const schoolYear = findCalendar(calendarId);
   const divisionsForYear = SCHOOL_YEARS.filter((item) => item.yearId === schoolYear.yearId);
   const term = schoolYear.terms.find((item) => item.id === termId) ?? schoolYear.terms[0];
-  const calendarViewMode: FullCalendarMode = isFullCalendarMode(mode) ? mode : "dayGridMonth";
   const stats = useMemo(() => termStats(term), [term]);
   const today = localTodayText();
   const defaultFocusDate = dateInRange(today, term.start, term.end) ? today : term.start;
@@ -372,7 +370,6 @@ export default function App() {
   }, [filteredYearEvents]);
   const isYearScope = mode === "overview" || mode === "yearPreview";
   const displayStats = isYearScope ? overviewStats : stats;
-  const scopeLine = isYearScope ? `${schoolYear.label} · ${schoolYear.division}` : `${schoolYear.label} · ${schoolYear.division} · ${term.label}`;
 
   useEffect(() => {
     const api = calendarRef.current?.getApi();
@@ -476,32 +473,28 @@ export default function App() {
               <small>{schoolYear.label} · {schoolYear.division}</small>
             </span>
           </a>
-          <nav className="term-tabs" aria-label="学期选择">
-            {schoolYear.terms.map((item) => (
-              <button key={item.id} type="button" className={item.id === term.id ? "active" : ""} onClick={() => setTermId(item.id)}>
-                {item.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-        <div className="masthead-main">
-          <div>
-            <p className="source-line">{scopeLine}</p>
-            <h1>北大附中校历</h1>
-          </div>
-          <div className="hero-stats" aria-label="当前校历统计">
-            <span>
-              <strong>{displayStats.events}</strong>
-              事件
-            </span>
-            <span>
-              <strong>{displayStats.exams}</strong>
-              考试
-            </span>
-            <span>
-              <strong>{displayStats.holidays}</strong>
-              假期
-            </span>
+          <div className="term-strip">
+            <nav className="term-tabs" aria-label="学期选择">
+              {schoolYear.terms.map((item) => (
+                <button key={item.id} type="button" className={item.id === term.id ? "active" : ""} onClick={() => setTermId(item.id)}>
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+            <div className="hero-stats" aria-label="当前校历统计">
+              <span>
+                <strong>{displayStats.events}</strong>
+                事件
+              </span>
+              <span>
+                <strong>{displayStats.exams}</strong>
+                考试
+              </span>
+              <span>
+                <strong>{displayStats.holidays}</strong>
+                假期
+              </span>
+            </div>
           </div>
         </div>
       </header>
@@ -533,10 +526,6 @@ export default function App() {
               <button type="button" className={mode === "dayGridMonth" ? "active" : ""} onClick={() => setMode("dayGridMonth")}>
                 <CalendarDays size={16} />
                 月历
-              </button>
-              <button type="button" className={mode === "listMonth" ? "active" : ""} onClick={() => setMode("listMonth")}>
-                <ListFilter size={16} />
-                列表
               </button>
               <button type="button" className={mode === "overview" ? "active" : ""} onClick={() => setMode("overview")}>
                 <CalendarRange size={16} />
@@ -701,10 +690,10 @@ export default function App() {
             </div>
             <FullCalendar
               ref={calendarRef}
-              plugins={[dayGridPlugin, listPlugin, interactionPlugin]}
+              plugins={[dayGridPlugin, interactionPlugin]}
               locale={zhCnLocale}
               timeZone="Asia/Shanghai"
-              initialView={calendarViewMode}
+              initialView="dayGridMonth"
               initialDate={defaultFocusDate}
               events={calendarEvents}
               eventClick={handleEventClick}
