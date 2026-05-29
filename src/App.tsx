@@ -5,7 +5,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import zhCnLocale from "@fullcalendar/core/locales/zh-cn";
 import type { CalendarApi, DatesSetArg, EventClickArg } from "@fullcalendar/core";
-import { CalendarDays, ExternalLink, Rss, Search, Sparkles } from "lucide-react";
+import { ArrowUpDown, CalendarDays, ExternalLink, Maximize2, Minimize2, Rss, Search, Sparkles } from "lucide-react";
 import { ACTIVE_SCHOOL_YEAR_ID, SCHOOL_YEARS } from "./data/schoolYears";
 import type { CalendarEvent, SchoolYear, Term } from "./types";
 import {
@@ -25,6 +25,14 @@ import "./styles.css";
 type FullCalendarMode = "dayGridMonth";
 type CalendarMode = FullCalendarMode | "overview" | "termPreview" | "yearPreview";
 type MonthCell = { date?: string; day?: number; weekday?: number };
+type WeekRangeSegment = {
+  event: CalendarEvent;
+  startIndex: number;
+  endIndex: number;
+  lane: number;
+  continuesBefore: boolean;
+  continuesAfter: boolean;
+};
 
 const GITHUB_ISSUE_URL = "https://github.com/ieduer/bdfz-calendar/issues/new";
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
@@ -39,6 +47,8 @@ const findCalendar = (calendarId: string) =>
 const getOrigin = () => (typeof window === "undefined" ? "https://cal.bdfz.net" : window.location.origin);
 const isFullCalendarMode = (mode: CalendarMode): mode is FullCalendarMode => mode === "dayGridMonth";
 const dateInRange = (date: string, start: string, end: string): boolean => date >= start && date <= end;
+const fcDateText = (date: Date): string =>
+  `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 const preferredTermId = (schoolYear: SchoolYear, date: string): Term["id"] =>
   schoolYear.terms.find((item) => dateInRange(date, item.start, item.end))?.id ?? schoolYear.activeTermId;
 
@@ -98,6 +108,19 @@ const buildEventsByDate = (events: CalendarEvent[]): Map<string, CalendarEvent[]
   return buckets;
 };
 
+const isMultiDayEvent = (item: CalendarEvent): boolean => Boolean(item.endDate && item.endDate > item.date);
+
+const buildSingleDayEventsByDate = (events: CalendarEvent[]): Map<string, CalendarEvent[]> => {
+  const buckets = new Map<string, CalendarEvent[]>();
+
+  events.forEach((item) => {
+    if (isMultiDayEvent(item)) return;
+    buckets.set(item.date, [...(buckets.get(item.date) ?? []), item]);
+  });
+
+  return buckets;
+};
+
 const chunkWeeks = (cells: MonthCell[]): MonthCell[][] => {
   const weeks: MonthCell[][] = [];
   for (let index = 0; index < cells.length; index += 7) {
@@ -125,10 +148,90 @@ const sortDayEvents = (items: CalendarEvent[]): CalendarEvent[] =>
   [...items].sort((a, b) => Number(a.category === "cycle") - Number(b.category === "cycle") || displayEventTitle(a).localeCompare(displayEventTitle(b)));
 
 type EventAccentStyle = CSSProperties & { "--event-accent": string };
+type RangeLaneStyle = CSSProperties & { "--range-lanes": number };
 
 const eventAccentStyle = (event: CalendarEvent): EventAccentStyle => ({
   "--event-accent": eventColor(event)
 });
+
+const buildWeekRangeSegments = (week: MonthCell[], events: CalendarEvent[]): WeekRangeSegment[] => {
+  const datedCells = week.filter((cell): cell is MonthCell & { date: string } => Boolean(cell.date));
+  const firstDate = datedCells[0]?.date;
+  const lastDate = datedCells[datedCells.length - 1]?.date;
+  if (!firstDate || !lastDate) return [];
+
+  const segments = events
+    .filter((event) => isMultiDayEvent(event) && event.date <= lastDate && (event.endDate ?? event.date) >= firstDate)
+    .map((event) => {
+      const startDate = event.date > firstDate ? event.date : firstDate;
+      const endDate = (event.endDate ?? event.date) < lastDate ? event.endDate ?? event.date : lastDate;
+      return {
+        event,
+        startIndex: week.findIndex((cell) => cell.date === startDate),
+        endIndex: week.findIndex((cell) => cell.date === endDate),
+        lane: 0,
+        continuesBefore: event.date < startDate,
+        continuesAfter: Boolean(event.endDate && event.endDate > endDate)
+      };
+    })
+    .filter((segment) => segment.startIndex >= 0 && segment.endIndex >= segment.startIndex)
+    .sort((a, b) => a.startIndex - b.startIndex || b.endIndex - a.endIndex || displayEventTitle(a.event).localeCompare(displayEventTitle(b.event)));
+
+  const laneEnds: number[] = [];
+  segments.forEach((segment) => {
+    const lane = laneEnds.findIndex((endIndex) => segment.startIndex > endIndex);
+    const nextLane = lane === -1 ? laneEnds.length : lane;
+    segment.lane = nextLane;
+    laneEnds[nextLane] = segment.endIndex;
+  });
+
+  return segments;
+};
+
+const LEGEND_ITEMS: Array<{ label: string; color: string; tag?: boolean }> = [
+  { label: "课表", color: categoryMeta.cycle.color, tag: true },
+  { label: "考试", color: categoryMeta.exam.color },
+  { label: "活动", color: categoryMeta.activity.color },
+  { label: "统练", color: categoryMeta.practice.color },
+  { label: "假期", color: categoryMeta.holiday.color }
+];
+
+function Legend() {
+  return (
+    <div className="legend" aria-label="图例：课表为浅色标签，活动为实色">
+      {LEGEND_ITEMS.map((item) => (
+        <span
+          key={item.label}
+          className={`legend-item ${item.tag ? "is-tag" : "is-solid"}`}
+          style={{ "--event-accent": item.color } as EventAccentStyle}
+        >
+          <span className="legend-swatch" aria-hidden="true" />
+          {item.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+type FullscreenToggleProps = {
+  expanded: boolean;
+  onToggle: () => void;
+};
+
+function FullscreenToggle({ expanded, onToggle }: FullscreenToggleProps) {
+  return (
+    <button
+      type="button"
+      className="fs-toggle"
+      onClick={onToggle}
+      aria-pressed={expanded}
+      aria-label={expanded ? "退出全屏" : "全屏显示"}
+      title={expanded ? "退出全屏" : "全屏"}
+    >
+      {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+    </button>
+  );
+}
 
 type PanelLinksProps = {
   sourceUrl: string;
@@ -137,13 +240,16 @@ type PanelLinksProps = {
 function PanelLinks({ sourceUrl }: PanelLinksProps) {
   return (
     <div className="panel-links">
-      <a href={sourceUrl} target="_blank" rel="noreferrer">
-        数据源
-      </a>
-      <a href={GITHUB_ISSUE_URL} target="_blank" rel="noreferrer">
-        <ExternalLink size={14} />
-        官方改动？提交 GitHub issue
-      </a>
+      <Legend />
+      <div className="panel-link-group">
+        <a href={sourceUrl} target="_blank" rel="noreferrer">
+          数据源
+        </a>
+        <a href={GITHUB_ISSUE_URL} target="_blank" rel="noreferrer">
+          <ExternalLink size={14} />
+          官方改动？提交 GitHub issue
+        </a>
+      </div>
     </div>
   );
 }
@@ -174,23 +280,66 @@ function SheetEventChip({ event, compact = false, onJumpToEvent }: SheetEventChi
   );
 }
 
+type SheetRangeChipProps = {
+  segment: WeekRangeSegment;
+  onJumpToEvent: (event: CalendarEvent) => void;
+};
+
+function SheetRangeChip({ segment, onJumpToEvent }: SheetRangeChipProps) {
+  const event = segment.event;
+  const eventClasses = eventClassNames(event);
+  const className = [
+    "sheet-range-chip",
+    `sheet-category-${event.category}`,
+    event.category === "cycle" ? "is-cycle" : "",
+    eventClasses.includes("event-cycle-irregular") ? "is-irregular" : "",
+    segment.continuesBefore ? "continues-before" : "",
+    segment.continuesAfter ? "continues-after" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const style = {
+    ...eventAccentStyle(event),
+    gridColumn: `${segment.startIndex + 1} / ${segment.endIndex + 2}`,
+    gridRow: String(segment.lane + 1)
+  } as EventAccentStyle & CSSProperties;
+
+  return (
+    <button
+      type="button"
+      className={className}
+      style={style}
+      title={`${displayEventTitle(event)} · ${formatRange(event.date, event.endDate)}`}
+      onClick={() => onJumpToEvent(event)}
+    >
+      <span>{displayEventTitle(event)}</span>
+    </button>
+  );
+}
+
 type SheetDayCellProps = {
   cell: MonthCell;
   eventsByDate: Map<string, CalendarEvent[]>;
+  stateEventsByDate: Map<string, CalendarEvent[]>;
   isFirstWeek?: boolean;
   today: string;
   onJumpToEvent: (event: CalendarEvent) => void;
 };
 
-function SheetDayCell({ cell, eventsByDate, isFirstWeek = false, today, onJumpToEvent }: SheetDayCellProps) {
+function SheetDayCell({ cell, eventsByDate, stateEventsByDate, isFirstWeek = false, today, onJumpToEvent }: SheetDayCellProps) {
   if (!cell.date) return <div className="sheet-day-cell empty" aria-hidden="true" />;
 
   const dayEvents = sortDayEvents(eventsByDate.get(cell.date) ?? []);
+  const stateEvents = stateEventsByDate.get(cell.date) ?? dayEvents;
+  const hasCycle = stateEvents.some((event) => event.category === "cycle");
+  const hasActivity = stateEvents.some((event) => event.category !== "cycle");
+  const isToday = cell.date === today;
   const className = [
     "sheet-day-cell",
     isFirstWeek ? "is-first-week" : "",
     dayEvents.length > 0 ? "has-events" : "",
-    cell.date === today ? "is-today" : "",
+    hasActivity ? "has-activity" : hasCycle ? "has-class" : "",
+    isToday ? "is-today" : "",
     cell.weekday === 6 ? "is-saturday" : "",
     cell.weekday === 7 ? "is-sunday" : ""
   ]
@@ -198,8 +347,14 @@ function SheetDayCell({ cell, eventsByDate, isFirstWeek = false, today, onJumpTo
     .join(" ");
 
   return (
-    <div className={className} aria-label={`${cell.date}${dayEvents.length ? ` ${dayEvents.map(displayEventTitle).join(" ")}` : ""}`}>
-      <span className="sheet-date-number">{sheetDateLabel(cell)}</span>
+    <div
+      className={className}
+      aria-label={`${isToday ? "今天 " : ""}${cell.date}${dayEvents.length ? ` ${dayEvents.map(displayEventTitle).join(" ")}` : ""}`}
+    >
+      <div className="sheet-day-head">
+        <span className="sheet-date-number">{sheetDateLabel(cell)}</span>
+        {isToday ? <span className="sheet-today-flag">今天</span> : null}
+      </div>
       <div className="sheet-day-events">
         {dayEvents.map((event) => (
           <SheetEventChip key={`${cell.date}-${event.id}`} event={event} compact onJumpToEvent={onJumpToEvent} />
@@ -212,14 +367,17 @@ function SheetDayCell({ cell, eventsByDate, isFirstWeek = false, today, onJumpTo
 type SheetMonthProps = {
   month: string;
   eventsByDate: Map<string, CalendarEvent[]>;
+  stateEventsByDate: Map<string, CalendarEvent[]>;
+  rangeEvents: CalendarEvent[];
   today: string;
   onJumpToEvent: (event: CalendarEvent) => void;
 };
 
-function SheetMonth({ month, eventsByDate, today, onJumpToEvent }: SheetMonthProps) {
+function SheetMonth({ month, eventsByDate, stateEventsByDate, rangeEvents, today, onJumpToEvent }: SheetMonthProps) {
   const cells = useMemo(() => buildMonthCells(month), [month]);
   const weeks = useMemo(() => chunkWeeks(cells), [cells]);
-  const eventCount = countMonthEvents(month, eventsByDate);
+  const eventCount = countMonthEvents(month, stateEventsByDate);
+  const rangeSegmentsByWeek = useMemo(() => weeks.map((week) => buildWeekRangeSegments(week, rangeEvents)), [weeks, rangeEvents]);
 
   return (
     <section className="sheet-month" data-month={month} aria-label={`${monthLabel(month)}预览`}>
@@ -230,16 +388,38 @@ function SheetMonth({ month, eventsByDate, today, onJumpToEvent }: SheetMonthPro
       <div className="sheet-month-label" style={{ gridRow: `span ${weeks.length}` }}>
         {monthName(month)}
       </div>
-      {cells.map((cell, index) => (
-        <SheetDayCell
-          key={cell.date ?? `${month}-${index}`}
-          cell={cell}
-          eventsByDate={eventsByDate}
-          isFirstWeek={index < 7}
-          today={today}
-          onJumpToEvent={onJumpToEvent}
-        />
-      ))}
+      <div className="sheet-month-weeks">
+        {weeks.map((week, weekIndex) => {
+          const segments = rangeSegmentsByWeek[weekIndex] ?? [];
+          const laneCount = segments.reduce((max, segment) => Math.max(max, segment.lane + 1), 0);
+          return (
+            <div key={`${month}-week-${weekIndex}`} className="sheet-week-row" style={{ "--range-lanes": laneCount } as RangeLaneStyle}>
+              {week.map((cell, cellIndex) => (
+                <SheetDayCell
+                  key={cell.date ?? `pad-${month}-${weekIndex}-${cellIndex}`}
+                  cell={cell}
+                  eventsByDate={eventsByDate}
+                  stateEventsByDate={stateEventsByDate}
+                  isFirstWeek={weekIndex === 0}
+                  today={today}
+                  onJumpToEvent={onJumpToEvent}
+                />
+              ))}
+              {segments.length > 0 ? (
+                <div className="sheet-range-layer">
+                  {segments.map((segment) => (
+                    <SheetRangeChip
+                      key={`${segment.event.id}-${weekIndex}-${segment.startIndex}-${segment.endIndex}`}
+                      segment={segment}
+                      onJumpToEvent={onJumpToEvent}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -253,12 +433,28 @@ type PreviewPanelProps = {
   focusMonth: string;
   sourceUrl: string;
   emptyText: string;
+  expanded: boolean;
+  onToggleFullscreen: () => void;
   onJumpToEvent: (event: CalendarEvent) => void;
 };
 
-function PreviewPanel({ title, subtitle, months, events, today, focusMonth, sourceUrl, emptyText, onJumpToEvent }: PreviewPanelProps) {
+function PreviewPanel({
+  title,
+  subtitle,
+  months,
+  events,
+  today,
+  focusMonth,
+  sourceUrl,
+  emptyText,
+  expanded,
+  onToggleFullscreen,
+  onJumpToEvent
+}: PreviewPanelProps) {
   const sheetScrollRef = useRef<HTMLDivElement | null>(null);
-  const eventsByDate = useMemo(() => buildEventsByDate(events), [events]);
+  const stateEventsByDate = useMemo(() => buildEventsByDate(events), [events]);
+  const eventsByDate = useMemo(() => buildSingleDayEventsByDate(events), [events]);
+  const rangeEvents = useMemo(() => events.filter(isMultiDayEvent), [events]);
 
   useEffect(() => {
     const scroller = sheetScrollRef.current;
@@ -277,10 +473,13 @@ function PreviewPanel({ title, subtitle, months, events, today, focusMonth, sour
   }, [focusMonth, months]);
 
   return (
-    <section className="preview-panel sheet-preview-panel" aria-label={title}>
+    <section className={`preview-panel sheet-preview-panel ${expanded ? "is-fullscreen" : ""}`} aria-label={title}>
       <div className="section-heading">
-        <p>{subtitle}</p>
-        <h2>{title}</h2>
+        <div>
+          <p>{subtitle}</p>
+          <h2>{title}</h2>
+        </div>
+        <FullscreenToggle expanded={expanded} onToggle={onToggleFullscreen} />
       </div>
       {months.length > 0 ? (
         <div className="sheet-scroll" ref={sheetScrollRef}>
@@ -291,7 +490,15 @@ function PreviewPanel({ title, subtitle, months, events, today, focusMonth, sour
             ))}
           </div>
           {months.map((month) => (
-            <SheetMonth key={month} month={month} eventsByDate={eventsByDate} today={today} onJumpToEvent={onJumpToEvent} />
+            <SheetMonth
+              key={month}
+              month={month}
+              eventsByDate={eventsByDate}
+              stateEventsByDate={stateEventsByDate}
+              rangeEvents={rangeEvents}
+              today={today}
+              onJumpToEvent={onJumpToEvent}
+            />
           ))}
         </div>
       ) : (
@@ -304,17 +511,20 @@ function PreviewPanel({ title, subtitle, months, events, today, focusMonth, sour
 
 export default function App() {
   const calendarRef = useRef<FullCalendar | null>(null);
+  const calendarPanelRef = useRef<HTMLDivElement | null>(null);
   const overviewScrollRef = useRef<HTMLDivElement | null>(null);
   const initialSchoolYear = findCalendar(ACTIVE_SCHOOL_YEAR_ID);
   const [calendarId, setCalendarId] = useState(ACTIVE_SCHOOL_YEAR_ID);
   const [termId, setTermId] = useState<Term["id"]>(() => preferredTermId(initialSchoolYear, localTodayText()));
-  const [mode, setMode] = useState<CalendarMode>("dayGridMonth");
+  const [mode, setMode] = useState<CalendarMode>("termPreview");
   const [query, setQuery] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [pendingJump, setPendingJump] = useState<CalendarEvent | null>(null);
   const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
   const [rangeTitle, setRangeTitle] = useState("");
+  const [expanded, setExpanded] = useState(true);
   const highlightTimeoutRef = useRef<number | undefined>(undefined);
+  const toggleFullscreen = () => setExpanded((value) => !value);
 
   const schoolYear = findCalendar(calendarId);
   const divisionsForYear = SCHOOL_YEARS.filter((item) => item.yearId === schoolYear.yearId);
@@ -353,6 +563,26 @@ export default function App() {
     [filteredEvents, highlightedEventId]
   );
   const termPreviewEvents = filteredEvents;
+  const { classDates, activityDates } = useMemo(() => {
+    const classSet = new Set<string>();
+    const activitySet = new Set<string>();
+    filteredEvents.forEach((item) => {
+      let date = item.date;
+      const last = item.endDate ?? item.date;
+      while (date <= last) {
+        if (item.category === "cycle") classSet.add(date);
+        else activitySet.add(date);
+        date = addDays(date, 1);
+      }
+    });
+    return { classDates: classSet, activityDates: activitySet };
+  }, [filteredEvents]);
+  const dayCellClassNames = (arg: { date: Date }): string[] => {
+    const date = fcDateText(arg.date);
+    if (activityDates.has(date)) return ["has-activity"];
+    if (classDates.has(date)) return ["has-class"];
+    return [];
+  };
   const nextEvents = useMemo(() => upcomingEvents(term, today, 7), [term, today]);
   const todayEvents = useMemo(
     () =>
@@ -437,6 +667,38 @@ export default function App() {
     return () => window.cancelAnimationFrame(frame);
   }, [mode, overviewFocusMonth, overviewMonths]);
 
+  useEffect(() => {
+    if (!isFullCalendarMode(mode)) return;
+
+    let frame = 0;
+    const applyRowHeight = () => {
+      const panel = calendarPanelRef.current;
+      const grid = panel?.querySelector<HTMLElement>(".fc");
+      if (!panel || !grid) return;
+
+      const dayCells = panel.querySelectorAll(".fc-daygrid-day").length;
+      const rows = dayCells > 0 ? dayCells / 7 : 6;
+      const header = panel.querySelector<HTMLElement>(".fc-col-header")?.offsetHeight ?? 38;
+      const links = panel.querySelector<HTMLElement>(".panel-links")?.offsetHeight ?? 0;
+      const paddingBottom = parseFloat(getComputedStyle(panel).paddingBottom) || 0;
+      const available = window.innerHeight - grid.getBoundingClientRect().top - header - links - paddingBottom - 18;
+      const perRow = Math.max(Math.floor(available / rows), 78);
+      panel.style.setProperty("--fc-row-min", `${perRow}px`);
+    };
+
+    const schedule = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(applyRowHeight);
+    };
+
+    schedule();
+    window.addEventListener("resize", schedule);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [mode, rangeTitle, term.id, expanded]);
+
   useEffect(
     () => () => {
       if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
@@ -466,6 +728,101 @@ export default function App() {
 
     return () => window.cancelAnimationFrame(frame);
   }, [mode, pendingJump]);
+
+  useEffect(() => {
+    setExpanded(mode === "termPreview");
+  }, [mode]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpanded(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [expanded]);
+
+  useEffect(() => {
+    if (!isFullCalendarMode(mode)) return;
+    const panel = calendarPanelRef.current;
+    const grid = panel?.querySelector<HTMLElement>(".fc");
+    if (!panel || !grid) return;
+
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+    let claimed = false;
+    let locked = false;
+    let flipTimer = 0;
+
+    const flip = (direction: 1 | -1) => {
+      const api = calendarRef.current?.getApi();
+      if (!api) return;
+      panel.classList.remove("flip-next", "flip-prev");
+      void panel.offsetWidth;
+      panel.classList.add(direction > 0 ? "flip-next" : "flip-prev");
+      if (direction > 0) api.next();
+      else api.prev();
+      window.clearTimeout(flipTimer);
+      flipTimer = window.setTimeout(() => panel.classList.remove("flip-next", "flip-prev"), 360);
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        tracking = false;
+        return;
+      }
+      tracking = true;
+      claimed = false;
+      startX = event.touches[0].clientX;
+      startY = event.touches[0].clientY;
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      if (!tracking) return;
+      const touch = event.touches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (!claimed && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx) * 1.2) claimed = true;
+      // 一旦确认是竖向手势，就接管它（阻止页面滚动与翻月相互打架）
+      if (claimed && event.cancelable) event.preventDefault();
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      if (!tracking) return;
+      tracking = false;
+      if (!claimed) return;
+      const touch = event.changedTouches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx)) flip(dy < 0 ? 1 : -1);
+    };
+    const onWheel = (event: WheelEvent) => {
+      if (locked) return;
+      if (Math.abs(event.deltaY) < 28 || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      event.preventDefault();
+      flip(event.deltaY > 0 ? 1 : -1);
+      locked = true;
+      window.setTimeout(() => {
+        locked = false;
+      }, 560);
+    };
+
+    grid.addEventListener("touchstart", onTouchStart, { passive: true });
+    grid.addEventListener("touchmove", onTouchMove, { passive: false });
+    grid.addEventListener("touchend", onTouchEnd, { passive: true });
+    grid.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      window.clearTimeout(flipTimer);
+      grid.removeEventListener("touchstart", onTouchStart);
+      grid.removeEventListener("touchmove", onTouchMove);
+      grid.removeEventListener("touchend", onTouchEnd);
+      grid.removeEventListener("wheel", onWheel);
+    };
+  }, [mode, term.id, expanded]);
 
   const calendarApi = (): CalendarApi | undefined => calendarRef.current?.getApi();
 
@@ -645,10 +1002,13 @@ export default function App() {
         </aside>
 
         {mode === "overview" ? (
-          <section className="overview-panel" aria-label="学期整体概览">
+          <section className={`overview-panel ${expanded ? "is-fullscreen" : ""}`} aria-label="学期整体概览">
             <div className="section-heading">
-              <p>{schoolYear.label} · {schoolYear.division}</p>
-              <h2>整体概览</h2>
+              <div>
+                <p>{schoolYear.label} · {schoolYear.division}</p>
+                <h2>整体概览</h2>
+              </div>
+              <FullscreenToggle expanded={expanded} onToggle={toggleFullscreen} />
             </div>
             <div className="overview-grid">
               {schoolYear.terms.map((item) => {
@@ -667,8 +1027,11 @@ export default function App() {
             <div className="month-overview" ref={overviewScrollRef}>
               {overviewMonths.length > 0 ? (
                 overviewMonths.map(([month, items]) => (
-                  <section key={month} className="month-row" data-month={month}>
-                    <h3>{month}</h3>
+                  <section key={month} className={`month-row ${month === todayMonth ? "is-today-month" : ""}`} data-month={month}>
+                    <div className="month-row-label">
+                      <h3>{month}</h3>
+                      {month === todayMonth ? <span className="month-today-flag">今天</span> : null}
+                    </div>
                     <div>
                       {items.map((item) => (
                         <button key={item.id} type="button" onClick={() => jumpToEvent(item)}>
@@ -696,6 +1059,8 @@ export default function App() {
             focusMonth={termPreviewFocusMonth}
             sourceUrl={schoolYear.source.url}
             emptyText={emptyText}
+            expanded={expanded}
+            onToggleFullscreen={toggleFullscreen}
             onJumpToEvent={jumpToEvent}
           />
         ) : mode === "yearPreview" ? (
@@ -708,14 +1073,20 @@ export default function App() {
             focusMonth={yearPreviewFocusMonth}
             sourceUrl={schoolYear.source.url}
             emptyText={emptyText}
+            expanded={expanded}
+            onToggleFullscreen={toggleFullscreen}
             onJumpToEvent={jumpToEvent}
           />
         ) : (
-          <section className="calendar-panel" aria-label={`${term.label}月历`}>
+          <section className={`calendar-panel ${expanded ? "is-fullscreen" : ""}`} aria-label={`${term.label}月历`} ref={calendarPanelRef}>
             <div className="calendar-toolbar">
               <div>
                 <p>{term.label}</p>
                 <h2>{rangeTitle || term.rangeLabel}</h2>
+                <span className="swipe-hint">
+                  <ArrowUpDown size={13} />
+                  上下滑动 / 滚轮翻月
+                </span>
               </div>
               <div className="calendar-nav">
                 <button type="button" onClick={() => calendarApi()?.prev()}>
@@ -727,6 +1098,7 @@ export default function App() {
                 <button type="button" onClick={() => calendarApi()?.next()}>
                   下月
                 </button>
+                <FullscreenToggle expanded={expanded} onToggle={toggleFullscreen} />
               </div>
             </div>
             <FullCalendar
@@ -742,6 +1114,7 @@ export default function App() {
               headerToolbar={false}
               height="auto"
               dayMaxEventRows={false}
+              dayCellClassNames={dayCellClassNames}
               eventDisplay="block"
               firstDay={1}
               fixedWeekCount={false}

@@ -156,22 +156,60 @@ export const importantEvents = (events: CalendarEvent[]): CalendarEvent[] =>
     .filter((item) => item.category !== "cycle")
     .sort((a, b) => compareDateText(a.date, b.date));
 
+const hexToRgb = (hex: string): [number, number, number] => {
+  const value = hex.replace("#", "");
+  const full = value.length === 3 ? value.split("").map((char) => char + char).join("") : value;
+  const int = Number.parseInt(full, 16);
+  return [(int >> 16) & 255, (int >> 8) & 255, int & 255];
+};
+
+const withAlpha = (hex: string, alpha: number): string => {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+const deepen = (hex: string, ratio: number): string => {
+  const [r, g, b] = hexToRgb(hex);
+  const factor = 1 - ratio;
+  return `rgb(${Math.round(r * factor)}, ${Math.round(g * factor)}, ${Math.round(b * factor)})`;
+};
+
+const readableText = (hex: string): string => {
+  const [r, g, b] = hexToRgb(hex);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.62 ? deepen(hex, 0.58) : "#fffdf7";
+};
+
 export const toFullCalendarEvent = (item: CalendarEvent): EventInput => {
   const color = eventColor(item);
-  return {
+  const base: EventInput = {
     id: item.id,
     title: displayEventTitle(item),
     start: item.date,
     end: toExclusiveEnd(item.endDate),
     allDay: true,
     className: eventClassNames(item),
-    backgroundColor: color,
-    borderColor: color,
     extendedProps: {
       category: item.category,
       audience: item.audience,
       note: item.note
     }
+  };
+
+  if (item.category === "cycle") {
+    return {
+      ...base,
+      backgroundColor: withAlpha(color, 0.13),
+      borderColor: withAlpha(color, 0.5),
+      textColor: deepen(color, 0.36)
+    };
+  }
+
+  return {
+    ...base,
+    backgroundColor: color,
+    borderColor: deepen(color, 0.12),
+    textColor: readableText(color)
   };
 };
 
