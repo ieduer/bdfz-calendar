@@ -903,6 +903,14 @@ h1 {
   box-shadow: inset 4px 0 0 var(--day-activity-edge);
 }
 
+/* 同日既有跨天活动又有 A/B/C/D/E/F：保留课表绿色脊条，并加活动提示线 */
+.sheet-day-cell.has-class.has-activity {
+  background:
+    linear-gradient(90deg, rgba(95, 158, 132, 0.14) 0 12px, transparent 12px),
+    var(--day-activity-fill);
+  box-shadow: inset 4px 0 0 var(--day-class-edge), inset 8px 0 0 var(--day-activity-edge);
+}
+
 /* 今天：珊瑚红描边 + 角标 + 光晕，刻意避开课表/活动配色（放在最后，优先级压过三态底色） */
 .sheet-day-cell.is-today {
   background: var(--today-wash);
@@ -966,7 +974,7 @@ h1 {
   display: grid;
   align-content: start;
   gap: 4px;
-  margin-top: calc(var(--range-lanes, 0) * 23px);
+  margin-top: calc(6px + var(--range-lanes, 0) * 26px);
 }
 
 .sheet-range-layer {
@@ -977,8 +985,8 @@ h1 {
   right: 0;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-auto-rows: 20px;
-  gap: 3px 0;
+  grid-auto-rows: 22px;
+  gap: 4px 0;
   padding: 0 5px;
   pointer-events: none;
 }
@@ -1015,7 +1023,7 @@ h1 {
 .sheet-range-chip {
   pointer-events: auto;
   min-height: 20px;
-  height: 20px;
+  height: 22px;
   display: flex;
   align-items: center;
   margin: 0 1px;
@@ -1316,6 +1324,13 @@ h1 {
   box-shadow: inset 4px 0 0 var(--day-activity-edge);
 }
 
+.fc .fc-daygrid-day.has-class.has-activity .fc-daygrid-day-frame {
+  background:
+    linear-gradient(90deg, rgba(95, 158, 132, 0.14) 0 12px, transparent 12px),
+    var(--day-activity-fill);
+  box-shadow: inset 4px 0 0 var(--day-class-edge), inset 8px 0 0 var(--day-activity-edge);
+}
+
 /* 今天若恰好有课/活动：脊条 + 珊瑚红描边并存 */
 .fc .fc-day-today.has-class .fc-daygrid-day-frame {
   box-shadow: inset 4px 0 0 var(--day-class-edge), inset 0 0 0 2px var(--today), 0 6px 18px var(--today-glow);
@@ -1323,6 +1338,10 @@ h1 {
 
 .fc .fc-day-today.has-activity .fc-daygrid-day-frame {
   box-shadow: inset 4px 0 0 var(--day-activity-edge), inset 0 0 0 2px var(--today), 0 6px 18px var(--today-glow);
+}
+
+.fc .fc-day-today.has-class.has-activity .fc-daygrid-day-frame {
+  box-shadow: inset 4px 0 0 var(--day-class-edge), inset 8px 0 0 var(--day-activity-edge), inset 0 0 0 2px var(--today), 0 6px 18px var(--today-glow);
 }
 
 .fc .fc-col-header-cell.fc-day-sat .fc-col-header-cell-cushion {

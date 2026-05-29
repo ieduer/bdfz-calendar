@@ -338,7 +338,8 @@ function SheetDayCell({ cell, eventsByDate, stateEventsByDate, isFirstWeek = fal
     "sheet-day-cell",
     isFirstWeek ? "is-first-week" : "",
     dayEvents.length > 0 ? "has-events" : "",
-    hasActivity ? "has-activity" : hasCycle ? "has-class" : "",
+    hasCycle ? "has-class" : "",
+    hasActivity ? "has-activity" : "",
     isToday ? "is-today" : "",
     cell.weekday === 6 ? "is-saturday" : "",
     cell.weekday === 7 ? "is-sunday" : ""
@@ -579,9 +580,7 @@ export default function App() {
   }, [filteredEvents]);
   const dayCellClassNames = (arg: { date: Date }): string[] => {
     const date = fcDateText(arg.date);
-    if (activityDates.has(date)) return ["has-activity"];
-    if (classDates.has(date)) return ["has-class"];
-    return [];
+    return [classDates.has(date) ? "has-class" : "", activityDates.has(date) ? "has-activity" : ""].filter(Boolean);
   };
   const nextEvents = useMemo(() => upcomingEvents(term, today, 7), [term, today]);
   const todayEvents = useMemo(
