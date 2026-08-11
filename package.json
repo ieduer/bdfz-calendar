@@ -9,7 +9,8 @@
     "prebuild": "npm run audit:data && tsx scripts/generate-feeds.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name bdfz-calendar"
+    "deploy": "npm run build && wrangler pages deploy dist --project-name bdfz-calendar",
+    "predeploy": "bash /Users/ylsuen/CF/scripts/git-deploy-gate.sh"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",
