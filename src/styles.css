@@ -11,17 +11,23 @@
   --ink-rgb: 57, 74, 79;
   --paper: #fffdf7;
   --heading: #385b55;
-  --sat-ink: #5f86b3;
-  --sun-ink: #b86f7d;
+  /* 周末统一为一抹暖中性“休息”色，不再蓝/粉各分一色，减少配色噪音 */
+  --sat-ink: #9c8a72;
+  --sun-ink: #9c8a72;
   --chip-ink-mix: #1f2e29;
   --scrim: rgba(35, 50, 48, 0.24);
-  /* day-state distinction (task: 上课 / 活动 / 空白 三态区别度) */
-  --day-class-fill: linear-gradient(180deg, rgba(123, 163, 152, 0.18), rgba(123, 163, 152, 0.03));
+  /* 日状态区分（在校上课 / 活动 / 假期休息 / 空白）：
+     绿 = 在校上课（主角，强化以便一眼可辨）；
+     暖陶土 = 假期 / 周末休息（“非上学日”统一信号）；
+     金 = 当日有活动（仅留细脊条，弱化底色，不与上课绿争夺注意力）。 */
+  --day-class-fill: linear-gradient(180deg, rgba(123, 163, 152, 0.26), rgba(123, 163, 152, 0.06));
   --day-class-edge: #5f9e84;
-  --day-activity-fill: linear-gradient(180deg, rgba(236, 202, 130, 0.34), rgba(236, 202, 130, 0.06));
+  --day-activity-fill: linear-gradient(180deg, rgba(236, 202, 130, 0.12), rgba(236, 202, 130, 0.02));
   --day-activity-edge: #c79233;
-  --sat-cell: rgba(185, 206, 224, 0.2);
-  --sun-cell: rgba(216, 180, 196, 0.2);
+  --day-rest-fill: linear-gradient(180deg, rgba(199, 174, 142, 0.22), rgba(199, 174, 142, 0.05));
+  --day-rest-edge: #c2a079;
+  --sat-cell: var(--day-rest-fill);
+  --sun-cell: var(--day-rest-fill);
   /* today — vivid coral, deliberately off the category palette so it never blends */
   --today: #df5a3c;
   --today-strong: #c5472b;
@@ -227,10 +233,23 @@ button {
 .term-tabs,
 .view-switch,
 .calendar-nav,
-.subscribe-row {
+.subscribe-row,
+.scope-switch {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.panel-heading-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.scope-switch button {
+  font-family: var(--font-ui);
+  font-size: 13px;
 }
 
 .term-tabs {
@@ -249,6 +268,7 @@ button {
 .term-tabs button,
 .view-switch button,
 .calendar-nav button,
+.scope-switch button,
 .export-button,
 .overview-card,
 .month-row button {
@@ -265,6 +285,7 @@ button {
 .term-tabs button:hover,
 .view-switch button:hover,
 .calendar-nav button:hover,
+.scope-switch button:hover,
 .export-button:hover,
 .overview-card:hover,
 .month-row button:hover {
@@ -284,6 +305,7 @@ button {
 .term-tabs button:active,
 .view-switch button:active,
 .calendar-nav button:active,
+.scope-switch button:active,
 .export-button:active,
 .overview-card:active,
 .month-row button:active,
@@ -293,7 +315,8 @@ button {
 }
 
 .term-tabs button.active,
-.view-switch button.active {
+.view-switch button.active,
+.scope-switch button.active {
   color: #fffdf7;
   background: var(--btn-active);
   border-color: rgba(84, 127, 116, 0.62);
@@ -301,7 +324,8 @@ button {
 }
 
 .term-tabs button.active:hover,
-.view-switch button.active:hover {
+.view-switch button.active:hover,
+.scope-switch button.active:hover {
   transform: translateY(-1px);
   background: var(--btn-active);
   box-shadow: var(--btn-shadow-active), 0 14px 26px rgba(84, 127, 116, 0.24);
@@ -882,25 +906,28 @@ h1 {
   background: rgba(var(--surface-rgb), 0.16);
 }
 
-/* 周末底色 */
-.sheet-day-cell.is-saturday {
+/* 周末底色：统一为暖中性“休息”色 */
+.sheet-day-cell.is-saturday,
+.sheet-day-cell.is-sunday {
   background: var(--sat-cell);
 }
 
-.sheet-day-cell.is-sunday {
-  background: var(--sun-cell);
-}
-
-/* 上课日：冷绿色调 + 左侧绿色脊条 */
-.sheet-day-cell.has-class {
-  background: var(--day-class-fill);
-  box-shadow: inset 4px 0 0 var(--day-class-edge);
-}
-
-/* 活动日：暖金色调 + 左侧金色脊条（与上课日按色相区分） */
+/* 活动日（无课）：弱金色 + 左侧金色脊条（保留三态区分但不喧宾夺主） */
 .sheet-day-cell.has-activity {
   background: var(--day-activity-fill);
   box-shadow: inset 4px 0 0 var(--day-activity-edge);
+}
+
+/* 假期 / 休息日：暖陶土底 + 陶土脊条，让“非上学日”一眼成块 */
+.sheet-day-cell.is-rest {
+  background: var(--day-rest-fill);
+  box-shadow: inset 4px 0 0 var(--day-rest-edge);
+}
+
+/* 上课日：冷绿色调 + 左侧绿色脊条（放在休息/活动之后，补课的周末也归为上课绿） */
+.sheet-day-cell.has-class {
+  background: var(--day-class-fill);
+  box-shadow: inset 4px 0 0 var(--day-class-edge);
 }
 
 /* 同日既有跨天活动又有 A/B/C/D/E/F：保留课表绿色脊条，并加活动提示线 */
@@ -1304,24 +1331,28 @@ h1 {
   box-shadow: inset 0 0 0 1px rgba(var(--surface-rgb), 0.78), 0 0 0 2px rgba(236, 202, 130, 0.46);
 }
 
-.fc .fc-day-sat {
+/* 周末底色：统一为暖中性“休息”色 */
+.fc .fc-day-sat,
+.fc .fc-day-sun {
   background: var(--sat-cell);
 }
 
-.fc .fc-day-sun {
-  background: var(--sun-cell);
-}
-
-/* 上课日：绿色脊条 */
-.fc .fc-daygrid-day.has-class .fc-daygrid-day-frame {
-  background: var(--day-class-fill);
-  box-shadow: inset 4px 0 0 var(--day-class-edge);
-}
-
-/* 活动日：金色脊条（与上课日按色相区分） */
+/* 活动日（无课）：弱金底 + 金色脊条 */
 .fc .fc-daygrid-day.has-activity .fc-daygrid-day-frame {
   background: var(--day-activity-fill);
   box-shadow: inset 4px 0 0 var(--day-activity-edge);
+}
+
+/* 假期 / 休息日：暖陶土底 + 陶土脊条（“非上学日”一眼成块） */
+.fc .fc-daygrid-day.is-rest .fc-daygrid-day-frame {
+  background: var(--day-rest-fill);
+  box-shadow: inset 4px 0 0 var(--day-rest-edge);
+}
+
+/* 上课日：绿色脊条（置于休息/活动之后，补课的周末也归为上课绿） */
+.fc .fc-daygrid-day.has-class .fc-daygrid-day-frame {
+  background: var(--day-class-fill);
+  box-shadow: inset 4px 0 0 var(--day-class-edge);
 }
 
 .fc .fc-daygrid-day.has-class.has-activity .fc-daygrid-day-frame {
@@ -1353,13 +1384,13 @@ h1 {
 }
 
 .event-holiday {
-  background-color: #7ba398;
-  border-color: #7ba398;
+  background-color: #cf9173;
+  border-color: #cf9173;
 }
 
 .event-exam {
-  background-color: #b8657f;
-  border-color: #b8657f;
+  background-color: #c06a82;
+  border-color: #c06a82;
 }
 
 .event-activity {
@@ -1373,13 +1404,13 @@ h1 {
 }
 
 .event-ceremony {
-  background-color: #8f80a8;
-  border-color: #8f80a8;
+  background-color: #9079ab;
+  border-color: #9079ab;
 }
 
 .event-practice {
-  background-color: #547f74;
-  border-color: #547f74;
+  background-color: #5f86b3;
+  border-color: #5f86b3;
 }
 
 .event-cleanup {
@@ -1840,6 +1871,239 @@ h1 {
 }
 
 /* ============================================================
+   移动端优化 (≤720px)：贴屏宽月历网格 + 圆点/课表字母指示
+   + 点按看当日事项 + 拇指可达的底部视图切换栏
+   ============================================================ */
+
+.mobile-tabbar {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  /* —— 学期/年历沙盘不再横向滚动，整体贴合屏宽 —— */
+  .sheet-preview-panel {
+    overflow: visible;
+  }
+
+  .sheet-scroll {
+    max-height: 64vh;
+    overflow: auto;
+    padding-bottom: 2px;
+  }
+
+  /* 星期表头：去掉“月”列，7 列等分铺满 */
+  .sheet-week-header {
+    min-width: 0;
+    grid-template-columns: repeat(7, 1fr);
+    border-radius: 12px 12px 0 0;
+  }
+
+  .sheet-week-header > span:first-child {
+    display: none;
+  }
+
+  .sheet-week-header span {
+    min-height: 30px;
+    font-size: 11px;
+  }
+
+  /* 月份：单列布局，标题改为顶部行（隐藏侧边竖排月标签） */
+  .sheet-month {
+    min-width: 0;
+    grid-template-columns: 1fr;
+    margin-top: 14px;
+    border-radius: 0 0 12px 12px;
+    overflow: hidden;
+  }
+
+  .sheet-month + .sheet-month {
+    margin-top: 14px;
+  }
+
+  .sheet-month-label {
+    display: none;
+  }
+
+  .sheet-month-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    grid-column: 1;
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(var(--ink-rgb), 0.14);
+    background: rgba(var(--surface-rgb), 0.62);
+  }
+
+  .sheet-month-title strong {
+    color: var(--heading);
+    font-family: var(--font-main);
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .sheet-month-title span {
+    color: var(--monet-water-deep);
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  .sheet-month-weeks {
+    grid-column: 1;
+  }
+
+  .sheet-week-row {
+    grid-template-columns: repeat(7, 1fr);
+  }
+
+  /* 紧凑日格：所有格子（含空白补位格）统一高度 */
+  .sheet-week-row .sheet-day-cell {
+    min-height: 54px;
+  }
+
+  .sheet-day-cell.is-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: stretch;
+    padding: 5px 4px;
+    text-align: left;
+    color: inherit;
+  }
+
+  button.sheet-day-cell.is-mobile {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button.sheet-day-cell.is-mobile:active {
+    background: rgba(var(--surface-rgb), 0.74);
+  }
+
+  .sheet-day-cell.is-mobile .sheet-date-number {
+    align-self: flex-start;
+    font-size: 12px;
+  }
+
+  .sheet-indicators {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px;
+    margin-top: auto;
+    min-height: 15px;
+  }
+
+  .sheet-cycle-tag {
+    --event-accent: var(--monet-water);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    border-radius: 5px;
+    border: 1px solid color-mix(in srgb, var(--event-accent) 42%, transparent);
+    background: color-mix(in srgb, var(--event-accent) 16%, rgba(var(--surface-rgb), 0.92));
+    color: color-mix(in srgb, var(--event-accent) 72%, var(--chip-ink-mix));
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .sheet-ind-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .sheet-ind-more {
+    color: var(--monet-muted);
+    font-family: var(--font-ui);
+    font-size: 9.5px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  /* 标题栏：允许换行；移动端隐藏全屏按钮（底部切换已够用，且全屏会盖住切换栏） */
+  .section-heading {
+    flex-wrap: wrap;
+  }
+
+  .panel-heading-controls {
+    margin-left: auto;
+  }
+
+  .fs-toggle {
+    display: none;
+  }
+
+  .scope-switch button {
+    min-height: 34px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  /* 当日事项底部抽屉的列表可滚动 */
+  .day-sheet-list {
+    max-height: 52vh;
+    overflow: auto;
+    margin-top: 18px;
+  }
+
+  /* —— 底部视图切换栏（拇指可达），替代侧栏里的视图切换 —— */
+  .side-rail .view-switch {
+    display: none;
+  }
+
+  .mobile-tabbar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--monet-border);
+    background: rgba(var(--surface-rgb), 0.94);
+    backdrop-filter: blur(18px) saturate(150%);
+    box-shadow: 0 -12px 30px rgba(var(--ink-rgb), 0.18);
+  }
+
+  .mobile-tabbar button {
+    min-height: 46px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    color: var(--monet-muted);
+    background: transparent;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 700;
+    transition: color 160ms ease, background 180ms ease, box-shadow 180ms ease;
+  }
+
+  .mobile-tabbar button.active {
+    color: #fffdf7;
+    background: var(--btn-active);
+    box-shadow: var(--btn-shadow-active);
+  }
+
+  /* 给固定底栏留出空间 */
+  .page-shell {
+    padding-bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+
+  .preview-panel,
+  .overview-panel {
+    padding: 14px;
+  }
+}
+
+/* ============================================================
    深色模式 —— 根据用户终端自动启用 (任务 1)
    莫奈夜睡莲：深底 + 睡莲图柔光叠加 + 冷暖光晕
    ============================================================ */
@@ -1850,8 +2114,8 @@ h1 {
     --ink-rgb: 0, 0, 0;
     --paper: #161d20;
     --heading: #bfe3d0;
-    --sat-ink: #8fb6e0;
-    --sun-ink: #e6a3b0;
+    --sat-ink: #b7a489;
+    --sun-ink: #b7a489;
     --chip-ink-mix: #e8f0ed;
     --scrim: rgba(6, 10, 11, 0.62);
 
@@ -1876,12 +2140,14 @@ h1 {
     --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.5);
     --shadow-panel: 0 26px 60px rgba(0, 0, 0, 0.6);
 
-    --day-class-fill: linear-gradient(180deg, rgba(123, 195, 168, 0.18), rgba(123, 195, 168, 0.03));
+    --day-class-fill: linear-gradient(180deg, rgba(123, 195, 168, 0.24), rgba(123, 195, 168, 0.05));
     --day-class-edge: #5fc2a0;
-    --day-activity-fill: linear-gradient(180deg, rgba(236, 200, 120, 0.2), rgba(236, 200, 120, 0.03));
+    --day-activity-fill: linear-gradient(180deg, rgba(236, 200, 120, 0.1), rgba(236, 200, 120, 0.02));
     --day-activity-edge: #e0b35e;
-    --sat-cell: rgba(120, 156, 200, 0.16);
-    --sun-cell: rgba(196, 130, 150, 0.16);
+    --day-rest-fill: linear-gradient(180deg, rgba(196, 170, 132, 0.16), rgba(196, 170, 132, 0.04));
+    --day-rest-edge: #c2a079;
+    --sat-cell: var(--day-rest-fill);
+    --sun-cell: var(--day-rest-fill);
 
     --today: #f0573a;
     --today-strong: #d4452a;
@@ -1935,46 +2201,17 @@ h1 {
     background: linear-gradient(168deg, rgba(58, 72, 78, 0.46), rgba(38, 49, 54, 0.34));
   }
 
-  /* 课表事件原为浅底深字（内联样式），深色下不可读 → 强制亮字深底，并按 A–F 着亮色 */
+  /* 课表事件原为浅底深字（内联样式），深色下不可读 → 强制亮字深底。
+     A–F 统一为一抹亮绿——“在校上课日”同一信号，靠字母区分循环日。 */
   .fc .event-cycle {
     background-color: rgba(var(--surface-rgb), 0.66) !important;
     border-color: rgba(160, 188, 182, 0.3) !important;
   }
 
-  .fc .event-cycle-a,
-  .fc .event-cycle-a .fc-event-title {
-    color: #6fc8a6 !important;
-    border-left-color: #6fc8a6 !important;
-  }
-
-  .fc .event-cycle-b,
-  .fc .event-cycle-b .fc-event-title {
-    color: #84b0e6 !important;
-    border-left-color: #84b0e6 !important;
-  }
-
-  .fc .event-cycle-c,
-  .fc .event-cycle-c .fc-event-title {
-    color: #e6c06a !important;
-    border-left-color: #e6c06a !important;
-  }
-
-  .fc .event-cycle-d,
-  .fc .event-cycle-d .fc-event-title {
-    color: #c4a0dc !important;
-    border-left-color: #c4a0dc !important;
-  }
-
-  .fc .event-cycle-e,
-  .fc .event-cycle-e .fc-event-title {
-    color: #ec8fa6 !important;
-    border-left-color: #ec8fa6 !important;
-  }
-
-  .fc .event-cycle-f,
-  .fc .event-cycle-f .fc-event-title {
-    color: #a9c884 !important;
-    border-left-color: #a9c884 !important;
+  .fc .event-cycle,
+  .fc .event-cycle .fc-event-title {
+    color: #79d0b0 !important;
+    border-left-color: #79d0b0 !important;
   }
 
   /* 沙盘里的非课表 chip 深色下保持实色亮字 */
