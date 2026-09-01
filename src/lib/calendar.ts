@@ -39,37 +39,28 @@ const CIRCLED_NUMBERS = [
 const CIRCLED_NUMBER_PATTERN = /[⓪①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚]/;
 const CYCLE_LETTER_PATTERN = /[A-F]/g;
 const CYCLE_EXPECTED_WEEKDAY: Record<string, number> = { A: 1, B: 2, C: 3, D: 4, E: 5, F: 6 };
-const CYCLE_COLORS: Record<string, string> = {
-  A: "#4f8f78",
-  B: "#5f86b3",
-  C: "#c59a4a",
-  D: "#9375a6",
-  E: "#b86f7d",
-  F: "#7c8f61"
-};
 
-const CATEGORY_COLOR_VARIANTS: Record<EventCategory, string[]> = {
-  holiday: ["#6f9f8d", "#86a968", "#6f98af", "#b58f54"],
-  exam: ["#b8657f", "#9f6ca5", "#bf735f", "#7a78ad", "#b48548"],
-  activity: ["#c9a76b", "#88a765", "#b98dba", "#d08d71", "#6f9ca8", "#a1a061"],
-  sports: ["#6f8d9f", "#5d9a8b", "#7f7fb0", "#9f8b5e"],
-  ceremony: ["#8f80a8", "#b07c8e", "#718aab", "#9c8b64"],
-  practice: ["#547f74", "#6a8f55", "#4f789b", "#9a8052", "#7f74a4"],
-  cleanup: ["#9a8b72", "#7d9483", "#9b7c73"],
-  cycle: Object.values(CYCLE_COLORS),
-  note: ["#7a8a92", "#88906f", "#8a7895", "#a08372"]
-};
+/**
+ * 课表（A–F）全部用同一抹绿——“在校上课日”的统一信号。
+ * 字母本身区分循环日，颜色不再各自为政，避免整张日历变成彩虹。
+ */
+const SCHOOL_GREEN = "#2f725e";
 
+/**
+ * 每个类别只用一种颜色（去掉原来按标题哈希随机选色的做法），
+ * 并把语义分组拉开：绿=在校上课；暖陶土=假期/休息；玫红=考试；
+ * 其余活动/仪式/统练等用克制的莫奈色，彼此可辨但不喧宾夺主。
+ */
 export const categoryMeta: Record<EventCategory, { label: string; className: string; color: string }> = {
-  holiday: { label: "假期", className: "event-holiday", color: "#7ba398" },
-  exam: { label: "考试", className: "event-exam", color: "#b8657f" },
-  activity: { label: "活动", className: "event-activity", color: "#c9a76b" },
-  sports: { label: "体育", className: "event-sports", color: "#6f8d9f" },
-  ceremony: { label: "仪式", className: "event-ceremony", color: "#8f80a8" },
-  practice: { label: "统练/学科", className: "event-practice", color: "#547f74" },
-  cleanup: { label: "扫除", className: "event-cleanup", color: "#9a8b72" },
-  cycle: { label: "课表", className: "event-cycle", color: "#8aa896" },
-  note: { label: "备注", className: "event-note", color: "#7a8a92" }
+  holiday: { label: "假期", className: "event-holiday", color: "#a84e2c" },
+  exam: { label: "考试", className: "event-exam", color: "#9e3154" },
+  activity: { label: "活动", className: "event-activity", color: "#8a6414" },
+  sports: { label: "体育", className: "event-sports", color: "#256c8a" },
+  ceremony: { label: "仪式", className: "event-ceremony", color: "#6b4a8e" },
+  practice: { label: "统练/学科", className: "event-practice", color: "#3458a4" },
+  cleanup: { label: "扫除", className: "event-cleanup", color: "#6f5842" },
+  cycle: { label: "课表", className: "event-cycle", color: SCHOOL_GREEN },
+  note: { label: "备注", className: "event-note", color: "#53636b" }
 };
 
 export type CycleInfo = {
@@ -80,14 +71,6 @@ export type CycleInfo = {
   irregular: boolean;
   expectedWeekday: number;
   actualWeekday: number;
-};
-
-const hashText = (value: string): number => {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-  return hash;
 };
 
 const weekdayOf = (dateText: string): number => {
@@ -114,7 +97,7 @@ export const getCycleInfo = (item: CalendarEvent): CycleInfo | null => {
   const rawPrefix = item.title.slice(0, letterMatch.index);
   const prefix = rawPrefix.replace(CIRCLED_NUMBER_PATTERN, "").trim();
   const suffix = item.title.slice(letterMatch.index + letter.length).trim();
-  const circle = rawPrefix.match(CIRCLED_NUMBER_PATTERN)?.[0] ?? circleFromAudience(item.audience) ?? "";
+  const circle = rawPrefix.match(CIRCLED_NUMBER_PATTERN)?.[0] ?? (item.unnumberedCycle ? "" : circleFromAudience(item.audience) ?? "");
 
   return {
     circle,
@@ -134,18 +117,14 @@ export const displayEventTitle = (item: CalendarEvent): string => {
 };
 
 export const eventColor = (item: CalendarEvent): string => {
-  const cycle = getCycleInfo(item);
-  if (cycle) return CYCLE_COLORS[cycle.letter] ?? categoryMeta.cycle.color;
-
-  const variants = CATEGORY_COLOR_VARIANTS[item.category] ?? [categoryMeta[item.category].color];
-  return variants[hashText(`${item.category}:${item.title}`) % variants.length];
+  if (getCycleInfo(item)) return SCHOOL_GREEN;
+  return categoryMeta[item.category].color;
 };
 
 export const eventClassNames = (item: CalendarEvent): string[] => {
   const cycle = getCycleInfo(item);
   return [
     categoryMeta[item.category].className,
-    `event-v-${hashText(`${item.category}:${item.title}`) % 8}`,
     cycle ? `event-cycle-${cycle.letter.toLowerCase()}` : "",
     cycle?.irregular ? "event-cycle-irregular" : ""
   ].filter(Boolean);
@@ -225,7 +204,8 @@ export const termStats = (term: Term) => {
     events: important.length,
     exams: important.filter((item) => item.category === "exam").length,
     holidays: important.filter((item) => item.category === "holiday").length,
-    cycles: term.events.filter((item) => item.category === "cycle").length
+    cycles: term.events.filter((item) => item.category === "cycle").length,
+    notices: term.notices?.length ?? 0
   };
 };
 

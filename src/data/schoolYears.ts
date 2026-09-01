@@ -41,6 +41,208 @@ const addCycleWeek = (
     })
   );
 
+const source2026 = {
+  title: "2026-2027学年校历",
+  url: "https://pkuschool.yuque.com/xqt6kg/gq1l46/zew3xz37o037dhig#uPWH",
+  extractedFrom: "Authenticated Yuque lake-sheet draft 71 (26-27学年（高中部）)",
+  extractedAt: "2026-08-31"
+};
+
+const fall2026CycleEvents: CalendarEvent[] = [
+  ...addCycleWeek("2026-fall", 1, [
+    ["2026-09-01", "①B"],
+    ["2026-09-02", "①C"],
+    ["2026-09-03", "①D"],
+    ["2026-09-04", "①E"]
+  ]),
+  ...addCycleWeek("2026-fall", 2, [
+    ["2026-09-07", "②A"],
+    ["2026-09-08", "②B"],
+    ["2026-09-09", "②C"],
+    ["2026-09-10", "②D"],
+    ["2026-09-11", "②E"]
+  ]),
+  ...addCycleWeek("2026-fall", 3, [
+    ["2026-09-14", "③A"],
+    ["2026-09-15", "③B"],
+    ["2026-09-16", "③C"],
+    ["2026-09-17", "③D"],
+    ["2026-09-18", "③E"]
+  ]),
+  event("2026-fall-cycle-unnumbered-0920", "E", "2026-09-20", "cycle", {
+    audience: "校历原表未标教学周序号",
+    note: "周日补课日",
+    unnumberedCycle: true
+  }),
+  ...addCycleWeek("2026-fall", 4, [
+    ["2026-09-21", "④A"],
+    ["2026-09-22", "④B"],
+    ["2026-09-23", "④C"],
+    ["2026-09-24", "④D"]
+  ]),
+  ...addCycleWeek("2026-fall", 5, [
+    ["2026-09-28", "⑤A"],
+    ["2026-09-29", "⑤B"],
+    ["2026-09-30", "⑤C"],
+    ["2026-10-08", "⑤D"],
+    ["2026-10-09", "⑤E"]
+  ]),
+  event("2026-fall-cycle-unnumbered-1010", "A", "2026-10-10", "cycle", {
+    audience: "校历原表未标教学周序号",
+    note: "周六补课日",
+    unnumberedCycle: true
+  }),
+  ...addCycleWeek("2026-fall", 6, [
+    ["2026-10-12", "⑥A"],
+    ["2026-10-13", "⑥B"],
+    ["2026-10-14", "⑥C"],
+    ["2026-10-15", "⑥D"],
+    ["2026-10-16", "⑥E"]
+  ]),
+  ...addCycleWeek("2026-fall", 7, [
+    ["2026-10-19", "⑦A"],
+    ["2026-10-20", "⑦B"],
+    ["2026-10-21", "⑦C"],
+    ["2026-10-22", "⑦D"],
+    ["2026-10-23", "⑦E"]
+  ]),
+  ...addCycleWeek("2026-fall", 8, [
+    ["2026-10-26", "⑧A"],
+    ["2026-10-27", "⑧B"],
+    ["2026-10-28", "⑧C"],
+    ["2026-10-29", "⑧D"],
+    ["2026-10-30", "⑧E"]
+  ]),
+  ...addCycleWeek("2026-fall", 9, [
+    ["2026-11-02", "⑨A"],
+    ["2026-11-03", "⑨B"],
+    ["2026-11-04", "⑨C"],
+    ["2026-11-05", "⑨D"],
+    ["2026-11-06", "⑨E"]
+  ]),
+  event("2026-fall-cycle-unnumbered-1109", "A", "2026-11-09", "cycle", {
+    audience: "校历原表未标教学周序号",
+    unnumberedCycle: true
+  }),
+  ...addCycleWeek("2026-fall", 10, [
+    ["2026-11-16", "⑩A"],
+    ["2026-11-17", "⑩B"],
+    ["2026-11-18", "⑩C"],
+    ["2026-11-19", "⑩D"],
+    ["2026-11-20", "⑩E"]
+  ]),
+  ...addCycleWeek("2026-fall", 11, [
+    ["2026-11-23", "⑪A"],
+    ["2026-11-24", "⑪B"],
+    ["2026-11-25", "⑪C"],
+    ["2026-11-26", "⑪D"],
+    ["2026-11-27", "⑪E"]
+  ]),
+  ...addCycleWeek("2026-fall", 12, [
+    ["2026-11-30", "⑫A"],
+    ["2026-12-01", "⑫B"],
+    ["2026-12-02", "⑫C"],
+    ["2026-12-03", "⑫D"],
+    ["2026-12-04", "⑫E"]
+  ]),
+  ...addCycleWeek("2026-fall", 13, [
+    ["2026-12-07", "⑬A"],
+    ["2026-12-08", "⑬B"],
+    ["2026-12-09", "⑬C"],
+    ["2026-12-10", "⑬D"],
+    ["2026-12-11", "⑬E"]
+  ]),
+  ...addCycleWeek("2026-fall", 14, [
+    ["2026-12-14", "⑭A"],
+    ["2026-12-15", "⑭B"],
+    ["2026-12-16", "⑭C"],
+    ["2026-12-17", "⑭D"],
+    ["2026-12-18", "⑭E"]
+  ]),
+  ...addCycleWeek("2026-fall", 15, [
+    ["2026-12-21", "⑮A"],
+    ["2026-12-22", "⑮B"],
+    ["2026-12-23", "⑮C"],
+    ["2026-12-24", "⑮D"],
+    ["2026-12-25", "⑮E"]
+  ]),
+  ...addCycleWeek("2026-fall", 16, [
+    ["2026-12-28", "⑯A"],
+    ["2026-12-29", "⑯B"],
+    ["2026-12-30", "⑯C"],
+    ["2026-12-31", "⑯D"]
+  ]),
+  ...addCycleWeek("2026-fall", 17, [
+    ["2027-01-04", "⑰A"],
+    ["2027-01-05", "⑰B"],
+    ["2027-01-06", "⑰C"],
+    ["2027-01-07", "⑰D"],
+    ["2027-01-08", "⑰E"]
+  ]),
+  ...addCycleWeek("2026-fall", 18, [
+    ["2027-01-11", "⑱A"],
+    ["2027-01-12", "⑱B"],
+    ["2027-01-13", "⑱C"],
+    ["2027-01-14", "⑱D"],
+    ["2027-01-15", "⑱E"]
+  ]),
+  event("2026-fall-cycle-unnumbered-0118", "A", "2027-01-18", "cycle", {
+    audience: "校历原表未标教学周序号",
+    unnumberedCycle: true
+  })
+];
+
+const fall2026Term: Term = {
+  id: "fall",
+  label: "第一学期",
+  rangeLabel: "2026.09 - 2027.02",
+  start: "2026-09-01",
+  end: "2027-02-21",
+  focusMonths: ["九月", "十月", "十一月", "十二月", "一月", "二月"],
+  notices: [
+    { id: "2026-fall-it-exam-tbd", title: "信息技术合格考", category: "exam", note: "日期待定" },
+    { id: "2026-fall-general-tech-exam-tbd", title: "通用技术合格考", category: "exam", note: "日期待定" },
+    { id: "2026-fall-academic-level-exam-tbd", title: "学业水平合格考", category: "exam", note: "日期待定" }
+  ],
+  events: [
+    event("2026-fall-start", "开学", "2026-09-01", "ceremony"),
+    event("2026-fall-tutor-training-0903", "导师胜任力提升计划", "2026-09-03", "activity"),
+    event("2026-fall-basketball-open", "篮球赛开幕式", "2026-09-24", "sports"),
+    event("2026-fall-mid-autumn", "中秋节假期", "2026-09-25", "holiday", { endDate: "2026-09-27" }),
+    event("2026-fall-national-day", "国庆节假期", "2026-10-01", "holiday", { endDate: "2026-10-07" }),
+    event("2026-fall-tutor-training-1015", "导师胜任力提升计划", "2026-10-15", "activity"),
+    event("2026-fall-basketball-award", "篮球赛颁奖典礼", "2026-10-29", "sports"),
+    event("2026-fall-midterm", "期中考试", "2026-11-10", "exam", { endDate: "2026-11-12" }),
+    event("2026-fall-career-carnival", "生涯嘉年华", "2026-11-19", "activity"),
+    event("2026-fall-tutor-training-1126", "导师胜任力提升计划", "2026-11-26", "activity"),
+    event("2026-fall-drama-open", "戏剧节开幕式", "2026-12-03", "activity"),
+    event("2026-fall-gaosan-listening", "高三英语听力", "2026-12-12", "exam", { audience: "高三" }),
+    event("2026-fall-chusan-listening", "初三英语听力", "2026-12-13", "exam", { audience: "初三" }),
+    event("2026-fall-drama-award", "戏剧节颁奖典礼", "2026-12-24", "activity"),
+    event("2026-fall-new-year", "元旦", "2027-01-01", "holiday"),
+    event("2026-fall-final", "期末考试", "2027-01-19", "exam", { endDate: "2027-01-21" }),
+    event("2026-fall-winter-vacation", "寒假", "2027-01-25", "holiday", { endDate: "2027-02-21" }),
+    event("2026-fall-cleanup-0904", "扫除", "2026-09-04", "cleanup", { audience: "高一" }),
+    event("2026-fall-practice-0911", "英语", "2026-09-11", "practice", { audience: "高一、高二" }),
+    event("2026-fall-practice-0918", "语文", "2026-09-18", "practice", { audience: "高一、高二" }),
+    event("2026-fall-practice-1009", "数学", "2026-10-09", "practice", { audience: "高一、高二" }),
+    event("2026-fall-cleanup-1016", "扫除", "2026-10-16", "cleanup", { audience: "高一" }),
+    event("2026-fall-practice-1023", "物理、地理 / 六选三", "2026-10-23", "practice", { audience: "高一 / 高二" }),
+    event("2026-fall-practice-1030", "化学、历史", "2026-10-30", "practice", { audience: "高一" }),
+    event("2026-fall-practice-1106", "语文活动", "2026-11-06", "practice", { audience: "高一" }),
+    event("2026-fall-midterm-review", "期中讲评", "2026-11-13", "exam", { audience: "高一" }),
+    event("2026-fall-practice-1120", "地理活动", "2026-11-20", "practice", { audience: "高一" }),
+    event("2026-fall-practice-1127", "数学学科 / 数学", "2026-11-27", "practice", { audience: "高一 / 高二" }),
+    event("2026-fall-practice-1204", "宪法日", "2026-12-04", "activity", { audience: "高一" }),
+    event("2026-fall-cleanup-1211", "扫除", "2026-12-11", "cleanup", { audience: "高一" }),
+    event("2026-fall-practice-1218", "英语活动", "2026-12-18", "practice", { audience: "高一、高二" }),
+    event("2026-fall-practice-1225", "政治、生物 / 语文活动", "2026-12-25", "practice", { audience: "高一 / 高二" }),
+    event("2026-fall-final-review", "期末讲评", "2027-01-22", "exam", { audience: "高一" }),
+    event("2026-fall-cleanup-0122", "扫除", "2027-01-22", "cleanup", { audience: "高一" }),
+    ...fall2026CycleEvents
+  ]
+};
+
 const fallCycleEvents: CalendarEvent[] = [
   ...addCycleWeek("fall", 1, [
     ["2025-09-01", "①A"],
@@ -432,7 +634,7 @@ const springTerm: Term = {
   ]
 };
 
-export const ACTIVE_SCHOOL_YEAR_ID = "2025-2026-high";
+export const ACTIVE_SCHOOL_YEAR_ID = "2026-2027-high";
 
 const prepPlaceholderTerm = (id: Term["id"], label: string, rangeLabel: string, start: string, end: string): Term => ({
   id,
@@ -707,6 +909,17 @@ const juniorSpring2025: Term = {
 };
 
 export const SCHOOL_YEARS: SchoolYear[] = [
+  {
+    id: "2026-2027-high",
+    label: "2026-2027学年",
+    yearId: "2026-2027",
+    divisionId: "high",
+    division: "高中部",
+    status: "partial-source",
+    activeTermId: "fall",
+    source: source2026,
+    terms: [fall2026Term]
+  },
   {
     id: "2025-2026-high",
     label: "2025-2026学年",

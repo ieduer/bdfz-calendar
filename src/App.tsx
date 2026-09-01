@@ -7,23 +7,25 @@ import zhCnLocale from "@fullcalendar/core/locales/zh-cn";
 import type { CalendarApi, DatesSetArg, EventClickArg } from "@fullcalendar/core";
 import { ArrowUpDown, CalendarDays, ExternalLink, Maximize2, Minimize2, Rss, Search, Sparkles } from "lucide-react";
 import { ACTIVE_SCHOOL_YEAR_ID, SCHOOL_YEARS } from "./data/schoolYears";
-import type { CalendarEvent, SchoolYear, Term } from "./types";
+import type { CalendarEvent, EventCategory, SchoolYear, Term, TermNotice } from "./types";
 import {
   categoryMeta,
   displayEventTitle,
   eventClassNames,
   eventColor,
+  getCycleInfo,
   importantEvents,
   termStats,
   toFullCalendarEvent,
   upcomingEvents
 } from "./lib/calendar";
-import { addDays, compareDateText, formatRange, localTodayText } from "./lib/dates";
+import { addDays, compareDateText, formatDate, formatRange, localTodayText } from "./lib/dates";
 import { EventSheet } from "./components/EventSheet";
 import "./styles.css";
 
-type FullCalendarMode = "dayGridMonth";
-type CalendarMode = FullCalendarMode | "overview" | "termPreview" | "yearPreview";
+type FullCalendarMode = "dayGridMonth" | "dayGridWeek";
+type CalendarMode = FullCalendarMode | "overview" | "termPreview";
+type PreviewScope = "term" | "year";
 type MonthCell = { date?: string; day?: number; weekday?: number };
 type WeekRangeSegment = {
   event: CalendarEvent;
@@ -36,6 +38,19 @@ type WeekRangeSegment = {
 
 const GITHUB_ISSUE_URL = "https://github.com/ieduer/bdfz-calendar/issues/new";
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
+const MOBILE_QUERY = "(max-width: 720px)";
+
+const useIsMobile = (): boolean => {
+  const [isMobile, setIsMobile] = useState(() => (typeof window === "undefined" ? false : window.matchMedia(MOBILE_QUERY).matches));
+  useEffect(() => {
+    const mql = window.matchMedia(MOBILE_QUERY);
+    const onChange = () => setIsMobile(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  return isMobile;
+};
 
 const yearOptions = Array.from(new Map(SCHOOL_YEARS.map((item) => [item.yearId, item.label])).entries()).sort((a, b) =>
   b[0].localeCompare(a[0])
@@ -45,7 +60,7 @@ const findCalendar = (calendarId: string) =>
   SCHOOL_YEARS.find((item) => item.id === calendarId) ?? SCHOOL_YEARS.find((item) => item.id === ACTIVE_SCHOOL_YEAR_ID) ?? SCHOOL_YEARS[0];
 
 const getOrigin = () => (typeof window === "undefined" ? "https://cal.bdfz.net" : window.location.origin);
-const isFullCalendarMode = (mode: CalendarMode): mode is FullCalendarMode => mode === "dayGridMonth";
+const isFullCalendarMode = (mode: CalendarMode): mode is FullCalendarMode => mode === "dayGridMonth" || mode === "dayGridWeek";
 const dateInRange = (date: string, start: string, end: string): boolean => date >= start && date <= end;
 const fcDateText = (date: Date): string =>
   `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
@@ -188,21 +203,21 @@ const buildWeekRangeSegments = (week: MonthCell[], events: CalendarEvent[]): Wee
   return segments;
 };
 
-const LEGEND_ITEMS: Array<{ label: string; color: string; tag?: boolean }> = [
-  { label: "课表", color: categoryMeta.cycle.color, tag: true },
-  { label: "考试", color: categoryMeta.exam.color },
-  { label: "活动", color: categoryMeta.activity.color },
-  { label: "统练", color: categoryMeta.practice.color },
-  { label: "假期", color: categoryMeta.holiday.color }
-];
+const CATEGORY_ORDER: EventCategory[] = ["cycle", "exam", "holiday", "activity", "sports", "ceremony", "practice", "cleanup", "note"];
 
-function Legend() {
+function Legend({ events }: { events: CalendarEvent[] }) {
+  const presentCategories = new Set(events.map((item) => item.category));
+  const legendItems = CATEGORY_ORDER.filter((category) => presentCategories.has(category)).map((category) => ({
+    category,
+    ...categoryMeta[category]
+  }));
+
   return (
-    <div className="legend" aria-label="图例：课表为浅色标签，活动为实色">
-      {LEGEND_ITEMS.map((item) => (
+    <div className="legend" aria-label="事件分类图例：课表为浅色标签，其他类别为实色">
+      {legendItems.map((item) => (
         <span
-          key={item.label}
-          className={`legend-item ${item.tag ? "is-tag" : "is-solid"}`}
+          key={item.category}
+          className={`legend-item ${item.category === "cycle" ? "is-tag" : "is-solid"}`}
           style={{ "--event-accent": item.color } as EventAccentStyle}
         >
           <span className="legend-swatch" aria-hidden="true" />
@@ -235,12 +250,13 @@ function FullscreenToggle({ expanded, onToggle }: FullscreenToggleProps) {
 
 type PanelLinksProps = {
   sourceUrl: string;
+  events: CalendarEvent[];
 };
 
-function PanelLinks({ sourceUrl }: PanelLinksProps) {
+function PanelLinks({ sourceUrl, events }: PanelLinksProps) {
   return (
     <div className="panel-links">
-      <Legend />
+      <Legend events={events} />
       <div className="panel-link-group">
         <a href={sourceUrl} target="_blank" rel="noreferrer">
           数据源
@@ -250,6 +266,39 @@ function PanelLinks({ sourceUrl }: PanelLinksProps) {
           官方改动？提交 GitHub issue
         </a>
       </div>
+    </div>
+  );
+}
+
+function CategoryBadge({ category }: { category: EventCategory }) {
+  const meta = categoryMeta[category];
+  return (
+    <span className="event-kind" style={{ "--event-accent": meta.color } as EventAccentStyle}>
+      {meta.label}
+    </span>
+  );
+}
+
+function PendingNotices({ notices }: { notices: TermNotice[] }) {
+  if (notices.length === 0) return null;
+
+  return (
+    <div className="upcoming-block pending-block">
+      <div className="block-title">
+        <CalendarDays size={16} />
+        日期待定
+      </div>
+      <ul className="pending-list">
+        {notices.map((notice) => (
+          <li key={notice.id} style={{ "--event-accent": categoryMeta[notice.category].color } as EventAccentStyle}>
+            <span className="pending-accent" aria-hidden="true" />
+            <span>
+              <strong>{notice.title}</strong>
+              <small>{[categoryMeta[notice.category].label, notice.audience, notice.note].filter(Boolean).join(" · ")}</small>
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -323,22 +372,28 @@ type SheetDayCellProps = {
   stateEventsByDate: Map<string, CalendarEvent[]>;
   isFirstWeek?: boolean;
   today: string;
+  mobile?: boolean;
+  onSelectDay: (date: string) => void;
   onJumpToEvent: (event: CalendarEvent) => void;
 };
 
-function SheetDayCell({ cell, eventsByDate, stateEventsByDate, isFirstWeek = false, today, onJumpToEvent }: SheetDayCellProps) {
+function SheetDayCell({ cell, eventsByDate, stateEventsByDate, isFirstWeek = false, today, mobile = false, onSelectDay, onJumpToEvent }: SheetDayCellProps) {
   if (!cell.date) return <div className="sheet-day-cell empty" aria-hidden="true" />;
+  const date = cell.date;
 
-  const dayEvents = sortDayEvents(eventsByDate.get(cell.date) ?? []);
-  const stateEvents = stateEventsByDate.get(cell.date) ?? dayEvents;
+  const dayEvents = sortDayEvents(eventsByDate.get(date) ?? []);
+  const stateEvents = sortDayEvents(stateEventsByDate.get(date) ?? dayEvents);
   const hasCycle = stateEvents.some((event) => event.category === "cycle");
-  const hasActivity = stateEvents.some((event) => event.category !== "cycle");
-  const isToday = cell.date === today;
+  const hasHoliday = stateEvents.some((event) => event.category === "holiday");
+  const hasActivity = stateEvents.some((event) => event.category !== "cycle" && event.category !== "holiday");
+  const isToday = date === today;
+  const countForState = mobile ? stateEvents.length : dayEvents.length;
   const className = [
     "sheet-day-cell",
     isFirstWeek ? "is-first-week" : "",
-    dayEvents.length > 0 ? "has-events" : "",
+    countForState > 0 ? "has-events" : "",
     hasCycle ? "has-class" : "",
+    hasHoliday ? "is-rest" : "",
     hasActivity ? "has-activity" : "",
     isToday ? "is-today" : "",
     cell.weekday === 6 ? "is-saturday" : "",
@@ -347,10 +402,42 @@ function SheetDayCell({ cell, eventsByDate, stateEventsByDate, isFirstWeek = fal
     .filter(Boolean)
     .join(" ");
 
+  if (mobile) {
+    const cycleEvents = stateEvents.filter((event) => event.category === "cycle");
+    const otherEvents = stateEvents.filter((event) => event.category !== "cycle");
+    const hasEvents = stateEvents.length > 0;
+    const ariaLabel = `${isToday ? "今天 " : ""}${date}${hasEvents ? `，${stateEvents.length}项：${stateEvents.map(displayEventTitle).join("、")}` : "，无事项"}`;
+    const inner = (
+      <>
+        <span className="sheet-date-number">{cell.day}</span>
+        <span className="sheet-indicators" aria-hidden="true">
+          {cycleEvents.map((event) => (
+            <span key={`${date}-${event.id}`} className="sheet-cycle-tag" style={eventAccentStyle(event)}>
+              {getCycleInfo(event)?.letter ?? "·"}
+            </span>
+          ))}
+          {otherEvents.slice(0, 3).map((event) => (
+            <span key={`${date}-${event.id}`} className="sheet-ind-dot" style={{ backgroundColor: eventColor(event) }} />
+          ))}
+          {otherEvents.length > 3 ? <span className="sheet-ind-more">+{otherEvents.length - 3}</span> : null}
+        </span>
+      </>
+    );
+    return hasEvents ? (
+      <button type="button" className={`${className} is-mobile`} aria-label={ariaLabel} onClick={() => onSelectDay(date)}>
+        {inner}
+      </button>
+    ) : (
+      <div className={`${className} is-mobile`} aria-label={ariaLabel}>
+        {inner}
+      </div>
+    );
+  }
+
   return (
     <div
       className={className}
-      aria-label={`${isToday ? "今天 " : ""}${cell.date}${dayEvents.length ? ` ${dayEvents.map(displayEventTitle).join(" ")}` : ""}`}
+      aria-label={`${isToday ? "今天 " : ""}${date}${dayEvents.length ? ` ${dayEvents.map(displayEventTitle).join(" ")}` : ""}`}
     >
       <div className="sheet-day-head">
         <span className="sheet-date-number">{sheetDateLabel(cell)}</span>
@@ -358,7 +445,7 @@ function SheetDayCell({ cell, eventsByDate, stateEventsByDate, isFirstWeek = fal
       </div>
       <div className="sheet-day-events">
         {dayEvents.map((event) => (
-          <SheetEventChip key={`${cell.date}-${event.id}`} event={event} compact onJumpToEvent={onJumpToEvent} />
+          <SheetEventChip key={`${date}-${event.id}`} event={event} compact onJumpToEvent={onJumpToEvent} />
         ))}
       </div>
     </div>
@@ -371,14 +458,19 @@ type SheetMonthProps = {
   stateEventsByDate: Map<string, CalendarEvent[]>;
   rangeEvents: CalendarEvent[];
   today: string;
+  mobile?: boolean;
+  onSelectDay: (date: string) => void;
   onJumpToEvent: (event: CalendarEvent) => void;
 };
 
-function SheetMonth({ month, eventsByDate, stateEventsByDate, rangeEvents, today, onJumpToEvent }: SheetMonthProps) {
+function SheetMonth({ month, eventsByDate, stateEventsByDate, rangeEvents, today, mobile = false, onSelectDay, onJumpToEvent }: SheetMonthProps) {
   const cells = useMemo(() => buildMonthCells(month), [month]);
   const weeks = useMemo(() => chunkWeeks(cells), [cells]);
   const eventCount = countMonthEvents(month, stateEventsByDate);
-  const rangeSegmentsByWeek = useMemo(() => weeks.map((week) => buildWeekRangeSegments(week, rangeEvents)), [weeks, rangeEvents]);
+  const rangeSegmentsByWeek = useMemo(
+    () => (mobile ? [] : weeks.map((week) => buildWeekRangeSegments(week, rangeEvents))),
+    [weeks, rangeEvents, mobile]
+  );
 
   return (
     <section className="sheet-month" data-month={month} aria-label={`${monthLabel(month)}预览`}>
@@ -403,6 +495,8 @@ function SheetMonth({ month, eventsByDate, stateEventsByDate, rangeEvents, today
                   stateEventsByDate={stateEventsByDate}
                   isFirstWeek={weekIndex === 0}
                   today={today}
+                  mobile={mobile}
+                  onSelectDay={onSelectDay}
                   onJumpToEvent={onJumpToEvent}
                 />
               ))}
@@ -425,6 +519,50 @@ function SheetMonth({ month, eventsByDate, stateEventsByDate, rangeEvents, today
   );
 }
 
+type DaySheetProps = {
+  date: string | null;
+  events: CalendarEvent[];
+  onClose: () => void;
+  onJumpToEvent: (event: CalendarEvent) => void;
+};
+
+function DaySheet({ date, events, onClose, onJumpToEvent }: DaySheetProps) {
+  if (!date) return null;
+  return (
+    <div className="event-sheet day-sheet" role="dialog" aria-modal="true" aria-label={`${date} 事项`}>
+      <button className="sheet-scrim" type="button" aria-label="关闭" onClick={onClose} />
+      <section className="sheet-panel">
+        <button className="sheet-close" type="button" onClick={onClose}>
+          关闭
+        </button>
+        <p className="sheet-category">{events.length} 项事项</p>
+        <h2>{formatDate(date)}</h2>
+        <ol className="event-list day-sheet-list">
+          {events.length > 0 ? (
+            events.map((event) => (
+              <li key={event.id}>
+                <button type="button" onClick={() => onJumpToEvent(event)}>
+                  <span className={`dot ${eventClassNames(event).join(" ")}`} style={{ backgroundColor: eventColor(event) }} />
+                  <span>
+                    <strong>{displayEventTitle(event)}</strong>
+                    <small>
+                      {categoryMeta[event.category].label}
+                      {event.endDate && event.endDate !== event.date ? ` · ${formatRange(event.date, event.endDate)}` : ""}
+                      {event.audience ? ` · ${event.audience}` : ""}
+                    </small>
+                  </span>
+                </button>
+              </li>
+            ))
+          ) : (
+            <li className="empty-row">无事项</li>
+          )}
+        </ol>
+      </section>
+    </div>
+  );
+}
+
 type PreviewPanelProps = {
   title: string;
   subtitle: string;
@@ -435,6 +573,9 @@ type PreviewPanelProps = {
   sourceUrl: string;
   emptyText: string;
   expanded: boolean;
+  scope: PreviewScope;
+  mobile: boolean;
+  onScopeChange: (scope: PreviewScope) => void;
   onToggleFullscreen: () => void;
   onJumpToEvent: (event: CalendarEvent) => void;
 };
@@ -449,13 +590,25 @@ function PreviewPanel({
   sourceUrl,
   emptyText,
   expanded,
+  scope,
+  mobile,
+  onScopeChange,
   onToggleFullscreen,
   onJumpToEvent
 }: PreviewPanelProps) {
   const sheetScrollRef = useRef<HTMLDivElement | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const stateEventsByDate = useMemo(() => buildEventsByDate(events), [events]);
   const eventsByDate = useMemo(() => buildSingleDayEventsByDate(events), [events]);
   const rangeEvents = useMemo(() => events.filter(isMultiDayEvent), [events]);
+  const selectedDayEvents = useMemo(
+    () => (selectedDate ? sortDayEvents(stateEventsByDate.get(selectedDate) ?? []) : []),
+    [selectedDate, stateEventsByDate]
+  );
+
+  useEffect(() => {
+    if (!mobile) setSelectedDate(null);
+  }, [mobile]);
 
   useEffect(() => {
     const scroller = sheetScrollRef.current;
@@ -480,7 +633,17 @@ function PreviewPanel({
           <p>{subtitle}</p>
           <h2>{title}</h2>
         </div>
-        <FullscreenToggle expanded={expanded} onToggle={onToggleFullscreen} />
+        <div className="panel-heading-controls">
+          <div className="scope-switch" role="group" aria-label="预览范围">
+            <button type="button" className={scope === "term" ? "active" : ""} onClick={() => onScopeChange("term")}>
+              本学期
+            </button>
+            <button type="button" className={scope === "year" ? "active" : ""} onClick={() => onScopeChange("year")}>
+              全年
+            </button>
+          </div>
+          <FullscreenToggle expanded={expanded} onToggle={onToggleFullscreen} />
+        </div>
       </div>
       {months.length > 0 ? (
         <div className="sheet-scroll" ref={sheetScrollRef}>
@@ -498,6 +661,8 @@ function PreviewPanel({
               stateEventsByDate={stateEventsByDate}
               rangeEvents={rangeEvents}
               today={today}
+              mobile={mobile}
+              onSelectDay={setSelectedDate}
               onJumpToEvent={onJumpToEvent}
             />
           ))}
@@ -505,7 +670,16 @@ function PreviewPanel({
       ) : (
         <p className="empty-panel">{emptyText}</p>
       )}
-      <PanelLinks sourceUrl={sourceUrl} />
+      <PanelLinks sourceUrl={sourceUrl} events={events} />
+      <DaySheet
+        date={selectedDate}
+        events={selectedDayEvents}
+        onClose={() => setSelectedDate(null)}
+        onJumpToEvent={(event) => {
+          setSelectedDate(null);
+          onJumpToEvent(event);
+        }}
+      />
     </section>
   );
 }
@@ -518,12 +692,14 @@ export default function App() {
   const [calendarId, setCalendarId] = useState(ACTIVE_SCHOOL_YEAR_ID);
   const [termId, setTermId] = useState<Term["id"]>(() => preferredTermId(initialSchoolYear, localTodayText()));
   const [mode, setMode] = useState<CalendarMode>("termPreview");
+  const [previewScope, setPreviewScope] = useState<PreviewScope>("term");
   const [query, setQuery] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [pendingJump, setPendingJump] = useState<CalendarEvent | null>(null);
   const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
   const [rangeTitle, setRangeTitle] = useState("");
-  const [expanded, setExpanded] = useState(true);
+  const isMobile = useIsMobile();
+  const [expanded, setExpanded] = useState(() => (typeof window === "undefined" ? true : !window.matchMedia(MOBILE_QUERY).matches));
   const highlightTimeoutRef = useRef<number | undefined>(undefined);
   const toggleFullscreen = () => setExpanded((value) => !value);
 
@@ -564,23 +740,29 @@ export default function App() {
     [filteredEvents, highlightedEventId]
   );
   const termPreviewEvents = filteredEvents;
-  const { classDates, activityDates } = useMemo(() => {
+  const { classDates, activityDates, restDates } = useMemo(() => {
     const classSet = new Set<string>();
     const activitySet = new Set<string>();
+    const restSet = new Set<string>();
     filteredEvents.forEach((item) => {
       let date = item.date;
       const last = item.endDate ?? item.date;
       while (date <= last) {
         if (item.category === "cycle") classSet.add(date);
+        else if (item.category === "holiday") restSet.add(date);
         else activitySet.add(date);
         date = addDays(date, 1);
       }
     });
-    return { classDates: classSet, activityDates: activitySet };
+    return { classDates: classSet, activityDates: activitySet, restDates: restSet };
   }, [filteredEvents]);
   const dayCellClassNames = (arg: { date: Date }): string[] => {
     const date = fcDateText(arg.date);
-    return [classDates.has(date) ? "has-class" : "", activityDates.has(date) ? "has-activity" : ""].filter(Boolean);
+    return [
+      classDates.has(date) ? "has-class" : "",
+      restDates.has(date) ? "is-rest" : "",
+      activityDates.has(date) ? "has-activity" : ""
+    ].filter(Boolean);
   };
   const nextEvents = useMemo(() => upcomingEvents(term, today, 7), [term, today]);
   const todayEvents = useMemo(
@@ -612,9 +794,10 @@ export default function App() {
       events: yearEvents.length,
       exams: yearEvents.filter((item) => item.category === "exam").length,
       holidays: yearEvents.filter((item) => item.category === "holiday").length,
-      activities: yearEvents.filter((item) => item.category === "activity" || item.category === "ceremony").length
+      activities: yearEvents.filter((item) => item.category === "activity" || item.category === "ceremony").length,
+      notices: schoolYear.terms.reduce((count, item) => count + (item.notices?.length ?? 0), 0)
     }),
-    [yearEvents]
+    [schoolYear.terms, yearEvents]
   );
   const overviewMonths = useMemo(() => {
     const buckets = new Map<string, CalendarEvent[]>();
@@ -624,7 +807,7 @@ export default function App() {
     });
     return Array.from(buckets.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredYearEvents]);
-  const isYearScope = mode === "overview" || mode === "yearPreview";
+  const isYearScope = mode === "overview" || (mode === "termPreview" && previewScope === "year");
   const displayStats = isYearScope ? overviewStats : stats;
   const overviewFocusMonth = overviewMonths.some(([month]) => month === todayMonth) ? todayMonth : overviewMonths[0]?.[0] ?? todayMonth;
 
@@ -675,13 +858,19 @@ export default function App() {
       const grid = panel?.querySelector<HTMLElement>(".fc");
       if (!panel || !grid) return;
 
+      const isWeek = mode === "dayGridWeek";
       const dayCells = panel.querySelectorAll(".fc-daygrid-day").length;
-      const rows = dayCells > 0 ? dayCells / 7 : 6;
+      const rows = dayCells > 0 ? dayCells / 7 : isWeek ? 1 : 6;
       const header = panel.querySelector<HTMLElement>(".fc-col-header")?.offsetHeight ?? 38;
       const links = panel.querySelector<HTMLElement>(".panel-links")?.offsetHeight ?? 0;
       const paddingBottom = parseFloat(getComputedStyle(panel).paddingBottom) || 0;
-      const available = window.innerHeight - grid.getBoundingClientRect().top - header - links - paddingBottom - 18;
-      const perRow = Math.max(Math.floor(available / rows), 78);
+      // 移动端底部有固定的视图切换栏，给它留出空间，避免最后一行被盖住
+      const bottomReserve = window.matchMedia(MOBILE_QUERY).matches ? 84 : 0;
+      const available = window.innerHeight - grid.getBoundingClientRect().top - header - links - paddingBottom - bottomReserve - 18;
+      // 周历只有一行：给一个舒适且封顶的高度，避免单行撑满整个视口显得空旷
+      const perRow = isWeek
+        ? Math.min(Math.max(Math.floor(available), 240), 460)
+        : Math.max(Math.floor(available / rows), 78);
       panel.style.setProperty("--fc-row-min", `${perRow}px`);
     };
 
@@ -729,8 +918,8 @@ export default function App() {
   }, [mode, pendingJump]);
 
   useEffect(() => {
-    setExpanded(mode === "termPreview");
-  }, [mode]);
+    setExpanded(mode === "termPreview" && !isMobile);
+  }, [mode, isMobile]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -864,7 +1053,7 @@ export default function App() {
   const emptyText = schoolYear.status === "pending-source" ? "待补录" : "没有匹配事件";
 
   return (
-    <main className={`page-shell ${mode === "dayGridMonth" ? "month-page" : ""}`}>
+    <main className={`page-shell ${isFullCalendarMode(mode) ? "month-page" : ""}`}>
       <div className="watercolor-bg" aria-hidden="true" />
       <header className="masthead">
         <div className="masthead-top">
@@ -877,6 +1066,7 @@ export default function App() {
               <small>{schoolYear.label} · {schoolYear.division}</small>
             </span>
           </a>
+          {schoolYear.status === "partial-source" ? <span className="source-status">已更新至第一学期</span> : null}
           <div className="term-strip">
             <nav className="term-tabs" aria-label="学期选择">
               {schoolYear.terms.map((item) => (
@@ -885,7 +1075,7 @@ export default function App() {
                 </button>
               ))}
             </nav>
-            <div className="hero-stats" aria-label="当前校历统计">
+            <div className={`hero-stats ${displayStats.notices > 0 ? "has-notices" : ""}`} aria-label="当前校历统计">
               <span>
                 <strong>{displayStats.events}</strong>
                 事件
@@ -898,12 +1088,18 @@ export default function App() {
                 <strong>{displayStats.holidays}</strong>
                 假期
               </span>
+              {displayStats.notices > 0 ? (
+                <span>
+                  <strong>{displayStats.notices}</strong>
+                  待定
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
       </header>
 
-      <section className={`workspace ${mode === "dayGridMonth" ? "calendar-workspace" : ""}`}>
+      <section className={`workspace ${isFullCalendarMode(mode) ? "calendar-workspace" : ""}`}>
         <aside className="side-rail" aria-label="校历控制与近期事件">
           <div className="control-block">
             <div className="select-grid">
@@ -927,6 +1123,9 @@ export default function App() {
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索校历" aria-label="搜索校历事件" />
             </label>
             <div className="view-switch" aria-label="视图切换">
+              <button type="button" className={mode === "dayGridWeek" ? "active" : ""} onClick={() => setMode("dayGridWeek")} aria-label="周历">
+                周历
+              </button>
               <button type="button" className={mode === "dayGridMonth" ? "active" : ""} onClick={() => setMode("dayGridMonth")}>
                 月历
               </button>
@@ -935,9 +1134,6 @@ export default function App() {
               </button>
               <button type="button" className={mode === "termPreview" ? "active" : ""} onClick={() => setMode("termPreview")} aria-label="学期预览">
                 学期
-              </button>
-              <button type="button" className={mode === "yearPreview" ? "active" : ""} onClick={() => setMode("yearPreview")} aria-label="年历预览">
-                年历
               </button>
             </div>
             <div className="subscribe-row">
@@ -964,7 +1160,7 @@ export default function App() {
                       <span className={`dot ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }} />
                       <span>
                         <strong>{displayEventTitle(item)}</strong>
-                        <small>{formatRange(item.date, item.endDate)}</small>
+                        <small><CategoryBadge category={item.category} />{formatRange(item.date, item.endDate)}</small>
                       </span>
                     </button>
                   </li>
@@ -988,7 +1184,7 @@ export default function App() {
                       <span className={`dot ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }} />
                       <span>
                         <strong>{displayEventTitle(item)}</strong>
-                        <small>{formatRange(item.date, item.endDate)}</small>
+                        <small><CategoryBadge category={item.category} />{formatRange(item.date, item.endDate)}</small>
                       </span>
                     </button>
                   </li>
@@ -998,6 +1194,8 @@ export default function App() {
               )}
             </ol>
           </div>
+
+          <PendingNotices notices={term.notices ?? []} />
         </aside>
 
         {mode === "overview" ? (
@@ -1046,56 +1244,45 @@ export default function App() {
                 <p className="empty-panel">{emptyText}</p>
               )}
             </div>
-            <PanelLinks sourceUrl={schoolYear.source.url} />
+            <PanelLinks sourceUrl={schoolYear.source.url} events={filteredYearEvents} />
           </section>
         ) : mode === "termPreview" ? (
           <PreviewPanel
-            title="学期预览"
-            subtitle={`${term.label} · ${term.rangeLabel}`}
-            months={termMonths}
-            events={termPreviewEvents}
+            title={previewScope === "year" ? "年历预览" : "学期预览"}
+            subtitle={previewScope === "year" ? `${schoolYear.label} · ${schoolYear.division}` : `${term.label} · ${term.rangeLabel}`}
+            months={previewScope === "year" ? fullYearMonths : termMonths}
+            events={previewScope === "year" ? yearPreviewEvents : termPreviewEvents}
             today={today}
-            focusMonth={termPreviewFocusMonth}
+            focusMonth={previewScope === "year" ? yearPreviewFocusMonth : termPreviewFocusMonth}
             sourceUrl={schoolYear.source.url}
             emptyText={emptyText}
             expanded={expanded}
-            onToggleFullscreen={toggleFullscreen}
-            onJumpToEvent={jumpToEvent}
-          />
-        ) : mode === "yearPreview" ? (
-          <PreviewPanel
-            title="年历预览"
-            subtitle={`${schoolYear.label} · ${schoolYear.division}`}
-            months={fullYearMonths}
-            events={yearPreviewEvents}
-            today={today}
-            focusMonth={yearPreviewFocusMonth}
-            sourceUrl={schoolYear.source.url}
-            emptyText={emptyText}
-            expanded={expanded}
+            scope={previewScope}
+            mobile={isMobile}
+            onScopeChange={setPreviewScope}
             onToggleFullscreen={toggleFullscreen}
             onJumpToEvent={jumpToEvent}
           />
         ) : (
-          <section className={`calendar-panel ${expanded ? "is-fullscreen" : ""}`} aria-label={`${term.label}月历`} ref={calendarPanelRef}>
+          <section className={`calendar-panel ${expanded ? "is-fullscreen" : ""}`} aria-label={`${term.label}${mode === "dayGridWeek" ? "周历" : "月历"}`} ref={calendarPanelRef}>
             <div className="calendar-toolbar">
               <div>
                 <p>{term.label}</p>
                 <h2>{rangeTitle || term.rangeLabel}</h2>
                 <span className="swipe-hint">
                   <ArrowUpDown size={13} />
-                  上下滑动 / 滚轮翻月
+                  上下滑动 / 滚轮{mode === "dayGridWeek" ? "翻周" : "翻月"}
                 </span>
               </div>
               <div className="calendar-nav">
                 <button type="button" onClick={() => calendarApi()?.prev()}>
-                  上月
+                  {mode === "dayGridWeek" ? "上周" : "上月"}
                 </button>
                 <button type="button" onClick={() => calendarApi()?.today()}>
                   今天
                 </button>
                 <button type="button" onClick={() => calendarApi()?.next()}>
-                  下月
+                  {mode === "dayGridWeek" ? "下周" : "下月"}
                 </button>
                 <FullscreenToggle expanded={expanded} onToggle={toggleFullscreen} />
               </div>
@@ -1105,7 +1292,7 @@ export default function App() {
               plugins={[dayGridPlugin, interactionPlugin]}
               locale={zhCnLocale}
               timeZone="Asia/Shanghai"
-              initialView="dayGridMonth"
+              initialView={isFullCalendarMode(mode) ? mode : "dayGridMonth"}
               initialDate={defaultFocusDate}
               events={calendarEvents}
               eventClick={handleEventClick}
@@ -1119,12 +1306,33 @@ export default function App() {
               fixedWeekCount={false}
               noEventsText={emptyText}
             />
-            <PanelLinks sourceUrl={schoolYear.source.url} />
+            <PanelLinks sourceUrl={schoolYear.source.url} events={filteredEvents} />
           </section>
         )}
       </section>
 
       <EventSheet event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+
+      <nav className="mobile-tabbar" aria-label="视图切换">
+        {(
+          [
+            ["dayGridWeek", "周历"],
+            ["dayGridMonth", "月历"],
+            ["overview", "概览"],
+            ["termPreview", "学期"]
+          ] as Array<[CalendarMode, string]>
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            className={mode === value ? "active" : ""}
+            aria-current={mode === value ? "page" : undefined}
+            onClick={() => setMode(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
     </main>
   );
 }
