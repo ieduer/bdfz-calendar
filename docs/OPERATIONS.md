@@ -1,6 +1,6 @@
 # 校历 operations
 
-Last normalized: 2026-08-10 PDT
+Last normalized: 2026-08-31 PDT
 Owner: suen
 Lifecycle: active
 Data class: anonymous_aggregate
@@ -8,9 +8,9 @@ Documentation status: generated from local source, Git/GitHub audit, project cat
 
 ## Quick start
 
-- Canonical local path: `/Users/ylsuen/CF/calendar`
+- Canonical local path: `/Users/ylsuen/CF/sites/tools/calendar` (`/Users/ylsuen/CF/calendar` remains a compatibility symlink)
 - Git authority: `ieduer/bdfz-calendar`
-- Current local branch/HEAD: `main` / `e7b67015fa75ceb2915bd95881f3db4486daad75`
+- Current production source: `main` / `f6d299379e0dfd4578735a4d8034f04a7c079a5a`
 - Runtime config: `calendar/wrangler.toml` (name `bdfz-calendar`)
 - Current state: [PROJECT_STATE.md](../PROJECT_STATE.md)
 - Workspace resource routing: [project resource index](../../reports/operations/project_resource_index.md)
@@ -35,7 +35,7 @@ Live Cloudflare matching is metadata-only and does not prove application health:
 
 | Resource | Live type | Readback | Detail |
 | --- | --- | --- | --- |
-| `bdfz-calendar` | Pages | verified 2026-08-10 | production branch `main`; canonical deployment `82770eea-a79a-4d18-9b0e-ca5cb61b1044` |
+| `bdfz-calendar` | Pages | verified 2026-08-31 | production branch `main`; canonical deployment `2c6c2d44-fb10-48ab-896f-c3a752af3a63`; source `f6d2993` |
 
 ## Authority and dependencies
 
@@ -54,10 +54,10 @@ Live Cloudflare matching is metadata-only and does not prove application health:
 - External/local build inputs, archived paths, receipts, retention, and hydrate commands not stated below are `review_required` and block deletion.
 
 Catalog backup evidence:
-- Cloudflare immutable Pages deployments: current=82770eea-a79a-4d18-9b0e-ca5cb61b1044, previous=1fe34f9a-6d0e-471b-bb99-04b1383a863e
+- Cloudflare immutable Pages deployments: current=2c6c2d44-fb10-48ab-896f-c3a752af3a63, previous accepted=82770eea-a79a-4d18-9b0e-ca5cb61b1044
 
 Catalog restore evidence:
-- restore code/assets by rolling back to production deployment 1fe34f9a-6d0e-471b-bb99-04b1383a863e
+- restore code/assets by promoting production deployment `82770eea-a79a-4d18-9b0e-ca5cb61b1044`, then verify the custom domain and prior feed
 
 Before deleting any local resource, satisfy the workspace path-preserving archive, remote readback, isolated restore, receipt, handbook, and project-state gates.
 
@@ -98,7 +98,7 @@ Catalog deploy commands (not authorization; fresh preflight remains mandatory):
 - npm --prefix "/Users/ylsuen/CF/calendar" run deploy
 
 Rollback/failback authorities:
-- curl -sS -X POST -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/da810f08b63347a01d3db7fd42619972/pages/projects/bdfz-calendar/deployments/1fe34f9a-6d0e-471b-bb99-04b1383a863e/rollback"
+- Cloudflare Pages deployment `82770eea-a79a-4d18-9b0e-ca5cb61b1044` is the immediate immutable rollback anchor. Use the authenticated Pages rollback/promotion workflow; never put credentials in this file.
 
 For data-backed projects, immutable code rollback does not restore D1/KV/R2/DO/Queue state. Use backup/restore or backward-compatible forward-fix procedures verified for the exact resource.
 
@@ -118,7 +118,18 @@ For data-backed projects, immutable code rollback does not restore D1/KV/R2/DO/Q
 5. Dependency regression: matrix fan-out, shared hubs, clone family, App/VPS as applicable.
 6. Backup/restore: catalog evidence above; missing exact evidence is blocking for writes/deletion.
 7. Rollback/failback: catalog authority above, refreshed live before release.
-8. Last verified: 2026-07-15T10:45:14.366Z.
+8. Last verified: 2026-08-31 PDT against `https://cal.bdfz.net/` and `https://cal.bdfz.net/feeds/2026-2027-high-all.ics` in desktop 1728px and mobile 390px browser views.
+
+## 2026-2027 first-semester release receipt
+
+- Data source: authenticated Yuque lakesheet draft 71, sheet `26-27学年（高中部）`; private raw response was not persisted.
+- Data scope: 34 dated important events, 91 cycle days, and 3 official undated notices; other divisions and the second semester remain absent rather than inferred.
+- Data audit: 5 calendars, 511 events, 0 errors, 7 expected warnings.
+- UI acceptance: fixed category palette with text labels; every white-on-category color pair is at least 5.37:1; no desktop or 390px horizontal overflow; mobile date sheet opens; browser console has no errors.
+- Feed acceptance: new `2026-2027-high-all.ics` returns `200 text/calendar` and contains the 2026-09-01 opening and 2027-01-25 winter-vacation anchors.
+- Capability fit: `no-new-capability`. The site remains a static Vite/React Pages direct upload with no new Cloudflare runtime, binding, data store, identity surface, shared-hub contract, or cost class.
+- Fan-out: leaf-only; User Center, APIS, nav, Pulse, DNS, Companion, VPS, and other sites are `verified_no_change` by scope and source diff.
+- Source/resource disposition: Git-tracked source and public source notes are `retain_hot`; no private Yuque raw extract was created; task-local build and browser-validation derivatives are `remove` at closeout.
 
 ## Synchronized documentation and handoff
 
