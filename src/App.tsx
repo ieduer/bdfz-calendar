@@ -7,7 +7,7 @@ import zhCnLocale from "@fullcalendar/core/locales/zh-cn";
 import type { CalendarApi, DatesSetArg, EventClickArg } from "@fullcalendar/core";
 import { ArrowUpDown, CalendarDays, ExternalLink, Maximize2, Minimize2, Rss, Search, Sparkles } from "lucide-react";
 import { ACTIVE_SCHOOL_YEAR_ID, SCHOOL_YEARS } from "./data/schoolYears";
-import type { CalendarEvent, SchoolYear, Term } from "./types";
+import type { CalendarEvent, EventCategory, SchoolYear, Term, TermNotice } from "./types";
 import {
   categoryMeta,
   displayEventTitle,
@@ -203,21 +203,21 @@ const buildWeekRangeSegments = (week: MonthCell[], events: CalendarEvent[]): Wee
   return segments;
 };
 
-const LEGEND_ITEMS: Array<{ label: string; color: string; tag?: boolean }> = [
-  { label: "课表", color: categoryMeta.cycle.color, tag: true },
-  { label: "考试", color: categoryMeta.exam.color },
-  { label: "活动", color: categoryMeta.activity.color },
-  { label: "统练", color: categoryMeta.practice.color },
-  { label: "假期", color: categoryMeta.holiday.color }
-];
+const CATEGORY_ORDER: EventCategory[] = ["cycle", "exam", "holiday", "activity", "sports", "ceremony", "practice", "cleanup", "note"];
 
-function Legend() {
+function Legend({ events }: { events: CalendarEvent[] }) {
+  const presentCategories = new Set(events.map((item) => item.category));
+  const legendItems = CATEGORY_ORDER.filter((category) => presentCategories.has(category)).map((category) => ({
+    category,
+    ...categoryMeta[category]
+  }));
+
   return (
-    <div className="legend" aria-label="图例：课表为浅色标签，活动为实色">
-      {LEGEND_ITEMS.map((item) => (
+    <div className="legend" aria-label="事件分类图例：课表为浅色标签，其他类别为实色">
+      {legendItems.map((item) => (
         <span
-          key={item.label}
-          className={`legend-item ${item.tag ? "is-tag" : "is-solid"}`}
+          key={item.category}
+          className={`legend-item ${item.category === "cycle" ? "is-tag" : "is-solid"}`}
           style={{ "--event-accent": item.color } as EventAccentStyle}
         >
           <span className="legend-swatch" aria-hidden="true" />
@@ -250,12 +250,13 @@ function FullscreenToggle({ expanded, onToggle }: FullscreenToggleProps) {
 
 type PanelLinksProps = {
   sourceUrl: string;
+  events: CalendarEvent[];
 };
 
-function PanelLinks({ sourceUrl }: PanelLinksProps) {
+function PanelLinks({ sourceUrl, events }: PanelLinksProps) {
   return (
     <div className="panel-links">
-      <Legend />
+      <Legend events={events} />
       <div className="panel-link-group">
         <a href={sourceUrl} target="_blank" rel="noreferrer">
           数据源
@@ -265,6 +266,39 @@ function PanelLinks({ sourceUrl }: PanelLinksProps) {
           官方改动？提交 GitHub issue
         </a>
       </div>
+    </div>
+  );
+}
+
+function CategoryBadge({ category }: { category: EventCategory }) {
+  const meta = categoryMeta[category];
+  return (
+    <span className="event-kind" style={{ "--event-accent": meta.color } as EventAccentStyle}>
+      {meta.label}
+    </span>
+  );
+}
+
+function PendingNotices({ notices }: { notices: TermNotice[] }) {
+  if (notices.length === 0) return null;
+
+  return (
+    <div className="upcoming-block pending-block">
+      <div className="block-title">
+        <CalendarDays size={16} />
+        日期待定
+      </div>
+      <ul className="pending-list">
+        {notices.map((notice) => (
+          <li key={notice.id} style={{ "--event-accent": categoryMeta[notice.category].color } as EventAccentStyle}>
+            <span className="pending-accent" aria-hidden="true" />
+            <span>
+              <strong>{notice.title}</strong>
+              <small>{[categoryMeta[notice.category].label, notice.audience, notice.note].filter(Boolean).join(" · ")}</small>
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -636,7 +670,7 @@ function PreviewPanel({
       ) : (
         <p className="empty-panel">{emptyText}</p>
       )}
-      <PanelLinks sourceUrl={sourceUrl} />
+      <PanelLinks sourceUrl={sourceUrl} events={events} />
       <DaySheet
         date={selectedDate}
         events={selectedDayEvents}
@@ -760,9 +794,10 @@ export default function App() {
       events: yearEvents.length,
       exams: yearEvents.filter((item) => item.category === "exam").length,
       holidays: yearEvents.filter((item) => item.category === "holiday").length,
-      activities: yearEvents.filter((item) => item.category === "activity" || item.category === "ceremony").length
+      activities: yearEvents.filter((item) => item.category === "activity" || item.category === "ceremony").length,
+      notices: schoolYear.terms.reduce((count, item) => count + (item.notices?.length ?? 0), 0)
     }),
-    [yearEvents]
+    [schoolYear.terms, yearEvents]
   );
   const overviewMonths = useMemo(() => {
     const buckets = new Map<string, CalendarEvent[]>();
@@ -1031,6 +1066,7 @@ export default function App() {
               <small>{schoolYear.label} · {schoolYear.division}</small>
             </span>
           </a>
+          {schoolYear.status === "partial-source" ? <span className="source-status">已更新至第一学期</span> : null}
           <div className="term-strip">
             <nav className="term-tabs" aria-label="学期选择">
               {schoolYear.terms.map((item) => (
@@ -1039,7 +1075,7 @@ export default function App() {
                 </button>
               ))}
             </nav>
-            <div className="hero-stats" aria-label="当前校历统计">
+            <div className={`hero-stats ${displayStats.notices > 0 ? "has-notices" : ""}`} aria-label="当前校历统计">
               <span>
                 <strong>{displayStats.events}</strong>
                 事件
@@ -1052,6 +1088,12 @@ export default function App() {
                 <strong>{displayStats.holidays}</strong>
                 假期
               </span>
+              {displayStats.notices > 0 ? (
+                <span>
+                  <strong>{displayStats.notices}</strong>
+                  待定
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
@@ -1118,7 +1160,7 @@ export default function App() {
                       <span className={`dot ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }} />
                       <span>
                         <strong>{displayEventTitle(item)}</strong>
-                        <small>{formatRange(item.date, item.endDate)}</small>
+                        <small><CategoryBadge category={item.category} />{formatRange(item.date, item.endDate)}</small>
                       </span>
                     </button>
                   </li>
@@ -1142,7 +1184,7 @@ export default function App() {
                       <span className={`dot ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }} />
                       <span>
                         <strong>{displayEventTitle(item)}</strong>
-                        <small>{formatRange(item.date, item.endDate)}</small>
+                        <small><CategoryBadge category={item.category} />{formatRange(item.date, item.endDate)}</small>
                       </span>
                     </button>
                   </li>
@@ -1152,6 +1194,8 @@ export default function App() {
               )}
             </ol>
           </div>
+
+          <PendingNotices notices={term.notices ?? []} />
         </aside>
 
         {mode === "overview" ? (
@@ -1200,7 +1244,7 @@ export default function App() {
                 <p className="empty-panel">{emptyText}</p>
               )}
             </div>
-            <PanelLinks sourceUrl={schoolYear.source.url} />
+            <PanelLinks sourceUrl={schoolYear.source.url} events={filteredYearEvents} />
           </section>
         ) : mode === "termPreview" ? (
           <PreviewPanel
@@ -1262,7 +1306,7 @@ export default function App() {
               fixedWeekCount={false}
               noEventsText={emptyText}
             />
-            <PanelLinks sourceUrl={schoolYear.source.url} />
+            <PanelLinks sourceUrl={schoolYear.source.url} events={filteredEvents} />
           </section>
         )}
       </section>

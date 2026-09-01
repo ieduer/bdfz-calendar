@@ -17,7 +17,16 @@ export type CalendarEvent = {
   category: EventCategory;
   audience?: string;
   note?: string;
+  unnumberedCycle?: boolean;
   source?: "yuque-copy" | "official-pdf" | "manual-placeholder";
+};
+
+export type TermNotice = {
+  id: string;
+  title: string;
+  category: EventCategory;
+  audience?: string;
+  note?: string;
 };
 
 export type Term = {
@@ -28,6 +37,7 @@ export type Term = {
   end: string;
   focusMonths: string[];
   events: CalendarEvent[];
+  notices?: TermNotice[];
 };
 
 export type SchoolYear = {

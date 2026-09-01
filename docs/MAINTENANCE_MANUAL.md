@@ -15,7 +15,7 @@ Cloudflare Pages project: `bdfz-calendar`
 - feed generation: `scripts/generate-feeds.ts`
 - data audit: `scripts/audit-calendar-data.ts`
 - Yuque active-tab extractor: `scripts/extract-yuque-current-tab.zsh`
-- source notes: `docs/source-notes-2025-2026.md`
+- source notes: `docs/source-notes-2025-2026.md`, `docs/source-notes-2026-2027.md`
 
 Previous school years must remain in `SCHOOL_YEARS` so historical calendars stay viewable. Add new years; do not replace old years. Only move `ACTIVE_SCHOOL_YEAR_ID` when the default public year should change.
 
@@ -23,21 +23,23 @@ Previous school years must remain in `SCHOOL_YEARS` so historical calendars stay
 
 The current dataset contains:
 
+- `2026-2027-high`: 高中部第一学期，partial-source（语雀当前只发布第一学期）
 - `2025-2026-high`: 高中部，complete
 - `2025-2026-prep`: 预科部，partial-source
 - `2025-2026-junior`: 初中部，complete from public notices
 - `2024-2025-junior`: 初中部 historical year
 
-The pre-deploy audit on 2026-05-28 reported:
+The pre-deploy audit on 2026-08-31 reported:
 
-- calendars: 4
-- events: 386
-- cycle events: 240
-- cycle events with display circles: 240
+- calendars: 5
+- events: 511
+- cycle events: 331
+- cycle events with display circles: 327
+- source-marked unnumbered cycle events: 4
 - errors: 0
-- warnings: 5
+- warnings: 7
 
-The current warnings are expected: four high-school shifted cycle days around the 2025 National Day schedule, plus the prep calendar being a visible-part partial source whose latest captured event is 2026-05-23.
+The current warnings are expected: two source-explicit 2026 weekend cycle shifts, four high-school shifted cycle days around the 2025 National Day schedule, plus the prep calendar being a visible-part partial source whose latest captured event is 2026-05-23.
 
 ## Yuque Reading Workflow
 
@@ -82,7 +84,8 @@ If Yuque virtualization returns incomplete text:
 3. Zoom out enough to expose the rows needed for that sheet.
 4. Scroll through the sheet once so Yuque renders rows into the DOM.
 5. Run the extractor again.
-6. If still incomplete, copy the rendered sheet text manually and record the fallback in `docs/source-notes-YYYY-YYYY.md`.
+6. If still incomplete, use an authorized Browser session to read the sheet response in memory, or copy the rendered sheet text manually.
+7. Record the exact sheet/draft, date normalization, and privacy handling in `docs/source-notes-YYYY-YYYY.md`; do not save the private raw response.
 
 ## Annual Update Workflow
 
@@ -92,7 +95,7 @@ If Yuque virtualization returns incomplete text:
 4. Preserve existing school years.
 5. Add divisions separately: high, prep, junior.
 6. Add term ranges and `focusMonths`.
-7. Enter cycle days with their circled teaching-week number, for example `⑪D`.
+7. Enter cycle days with their circled teaching-week number, for example `⑪D`; use `unnumberedCycle: true` only when the source explicitly omits the number.
 8. Mark official non-cycle events with stable ids and categories.
 9. Set `status: "partial-source"` only when the source is visibly incomplete.
 10. Run the audit.
@@ -115,6 +118,8 @@ The audit checks:
 - dates inside the school-year range
 - dates inside the term range
 - cycle events have displayable circled teaching-week numbers
+- source-explicit unnumbered cycle events are accepted and counted separately
+- event and undated-notice ids are unique
 - A/B/C/D/E/F weekday alignment
 - shifted A-F days are surfaced as warnings
 - partial-source calendars are warned when latest captured event is before today
@@ -135,12 +140,14 @@ ICS subscription feeds are generated during `npm run build` into `public/feeds/`
 
 Current feeds:
 
+- `2026-2027-high-all.ics`
 - `2025-2026-high-all.ics`
 - `2025-2026-prep-all.ics`
 - `2025-2026-junior-all.ics`
 - `2024-2025-junior-all.ics`
 
 Feeds intentionally include important events and exclude daily cycle-only entries.
+Official events whose date is still marked “待定” remain visible in the UI but are excluded from ICS until the source publishes a date.
 
 ## Build And Deploy
 
@@ -172,7 +179,7 @@ After a calendar deployment:
 
 ```bash
 curl -sSI https://cal.bdfz.net/
-curl -sSI https://cal.bdfz.net/feeds/2025-2026-high-all.ics
+curl -sSI https://cal.bdfz.net/feeds/2026-2027-high-all.ics
 curl -sS https://cal.bdfz.net/ | head
 ```
 
@@ -182,6 +189,8 @@ Open the site and verify:
 - month, overview, term, and year previews locate to current month
 - subscription links are visible
 - historical years remain selectable
+- partial-source status and official undated notices are visible without invented dates
+- category labels remain distinguishable by text as well as color
 - source/GitHub issue link is visible inside the calendar panel
 
 ## Navigation References

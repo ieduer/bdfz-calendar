@@ -230,6 +230,20 @@ button {
   font-size: 12px;
 }
 
+.source-status {
+  flex: none;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, #8a6414 42%, transparent);
+  border-radius: 999px;
+  color: #6c4b0a;
+  background: color-mix(in srgb, #8a6414 11%, var(--paper));
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
 .term-tabs,
 .view-switch,
 .calendar-nav,
@@ -387,6 +401,10 @@ h1 {
   display: inline-grid;
   grid-template-columns: repeat(3, minmax(92px, 1fr));
   gap: 6px;
+}
+
+.hero-stats.has-notices {
+  grid-template-columns: repeat(4, minmax(76px, 1fr));
 }
 
 .hero-stats span {
@@ -667,10 +685,73 @@ h1 {
 }
 
 .event-list small {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   margin-top: 3px;
   color: var(--monet-muted);
   font-family: var(--font-ui);
   font-size: 12px;
+}
+
+.event-kind {
+  --event-accent: var(--monet-water);
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--event-accent);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+.pending-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pending-list li {
+  --event-accent: var(--monet-water);
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr);
+  gap: 9px;
+  min-height: 44px;
+  padding: 8px 10px 8px 8px;
+  border: 1px solid var(--monet-border-soft);
+  border-radius: 9px;
+  background: rgba(var(--surface-rgb), 0.54);
+}
+
+.pending-accent {
+  width: 4px;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--event-accent);
+}
+
+.pending-list strong,
+.pending-list small {
+  display: block;
+}
+
+.pending-list strong {
+  color: var(--monet-ink);
+  font-size: 13px;
+}
+
+.pending-list small {
+  margin-top: 3px;
+  color: var(--monet-muted);
+  font-family: var(--font-ui);
+  font-size: 11px;
 }
 
 .month-page .event-list small {
@@ -1047,6 +1128,14 @@ h1 {
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 180ms ease;
 }
 
+.sheet-event-chip:not(.is-cycle),
+.sheet-range-chip:not(.is-cycle) {
+  color: #fff;
+  background: var(--event-accent);
+  border-color: color-mix(in srgb, var(--event-accent) 76%, #18201f);
+  box-shadow: 0 3px 9px rgba(var(--ink-rgb), 0.2);
+}
+
 .sheet-range-chip {
   pointer-events: auto;
   min-height: 20px;
@@ -1103,8 +1192,8 @@ h1 {
 }
 
 .sheet-event-chip:not(.is-cycle) .sheet-event-dot {
-  background: rgba(var(--surface-rgb), 0.92);
-  box-shadow: 0 0 0 1px rgba(var(--ink-rgb), 0.12);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 .sheet-event-chip.is-irregular {
@@ -1384,43 +1473,43 @@ h1 {
 }
 
 .event-holiday {
-  background-color: #cf9173;
-  border-color: #cf9173;
+  background-color: #a84e2c;
+  border-color: #a84e2c;
 }
 
 .event-exam {
-  background-color: #c06a82;
-  border-color: #c06a82;
+  background-color: #9e3154;
+  border-color: #9e3154;
 }
 
 .event-activity {
-  background-color: #c9a76b;
-  border-color: #c9a76b;
+  background-color: #8a6414;
+  border-color: #8a6414;
 }
 
 .event-sports {
-  background-color: #6f8d9f;
-  border-color: #6f8d9f;
+  background-color: #256c8a;
+  border-color: #256c8a;
 }
 
 .event-ceremony {
-  background-color: #9079ab;
-  border-color: #9079ab;
+  background-color: #6b4a8e;
+  border-color: #6b4a8e;
 }
 
 .event-practice {
-  background-color: #5f86b3;
-  border-color: #5f86b3;
+  background-color: #3458a4;
+  border-color: #3458a4;
 }
 
 .event-cleanup {
-  background-color: #9a8b72;
-  border-color: #9a8b72;
+  background-color: #6f5842;
+  border-color: #6f5842;
 }
 
 .event-note {
-  background-color: #7a8a92;
-  border-color: #7a8a92;
+  background-color: #53636b;
+  border-color: #53636b;
 }
 
 .section-heading {
@@ -1477,8 +1566,8 @@ h1 {
 }
 
 .legend-item.is-solid .legend-swatch {
-  background: linear-gradient(165deg, color-mix(in srgb, var(--event-accent) 80%, var(--paper)), var(--event-accent));
-  border: 1px solid color-mix(in srgb, var(--event-accent) 60%, transparent);
+  background: var(--event-accent);
+  border: 1px solid color-mix(in srgb, var(--event-accent) 76%, #18201f);
   box-shadow: 0 1px 3px rgba(var(--ink-rgb), 0.18);
 }
 

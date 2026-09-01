@@ -44,7 +44,7 @@ const CYCLE_EXPECTED_WEEKDAY: Record<string, number> = { A: 1, B: 2, C: 3, D: 4,
  * 课表（A–F）全部用同一抹绿——“在校上课日”的统一信号。
  * 字母本身区分循环日，颜色不再各自为政，避免整张日历变成彩虹。
  */
-const SCHOOL_GREEN = "#5f9e84";
+const SCHOOL_GREEN = "#2f725e";
 
 /**
  * 每个类别只用一种颜色（去掉原来按标题哈希随机选色的做法），
@@ -52,15 +52,15 @@ const SCHOOL_GREEN = "#5f9e84";
  * 其余活动/仪式/统练等用克制的莫奈色，彼此可辨但不喧宾夺主。
  */
 export const categoryMeta: Record<EventCategory, { label: string; className: string; color: string }> = {
-  holiday: { label: "假期", className: "event-holiday", color: "#cf9173" },
-  exam: { label: "考试", className: "event-exam", color: "#c06a82" },
-  activity: { label: "活动", className: "event-activity", color: "#c9a76b" },
-  sports: { label: "体育", className: "event-sports", color: "#6f8d9f" },
-  ceremony: { label: "仪式", className: "event-ceremony", color: "#9079ab" },
-  practice: { label: "统练/学科", className: "event-practice", color: "#5f86b3" },
-  cleanup: { label: "扫除", className: "event-cleanup", color: "#9a8b72" },
+  holiday: { label: "假期", className: "event-holiday", color: "#a84e2c" },
+  exam: { label: "考试", className: "event-exam", color: "#9e3154" },
+  activity: { label: "活动", className: "event-activity", color: "#8a6414" },
+  sports: { label: "体育", className: "event-sports", color: "#256c8a" },
+  ceremony: { label: "仪式", className: "event-ceremony", color: "#6b4a8e" },
+  practice: { label: "统练/学科", className: "event-practice", color: "#3458a4" },
+  cleanup: { label: "扫除", className: "event-cleanup", color: "#6f5842" },
   cycle: { label: "课表", className: "event-cycle", color: SCHOOL_GREEN },
-  note: { label: "备注", className: "event-note", color: "#7a8a92" }
+  note: { label: "备注", className: "event-note", color: "#53636b" }
 };
 
 export type CycleInfo = {
@@ -97,7 +97,7 @@ export const getCycleInfo = (item: CalendarEvent): CycleInfo | null => {
   const rawPrefix = item.title.slice(0, letterMatch.index);
   const prefix = rawPrefix.replace(CIRCLED_NUMBER_PATTERN, "").trim();
   const suffix = item.title.slice(letterMatch.index + letter.length).trim();
-  const circle = rawPrefix.match(CIRCLED_NUMBER_PATTERN)?.[0] ?? circleFromAudience(item.audience) ?? "";
+  const circle = rawPrefix.match(CIRCLED_NUMBER_PATTERN)?.[0] ?? (item.unnumberedCycle ? "" : circleFromAudience(item.audience) ?? "");
 
   return {
     circle,
@@ -204,7 +204,8 @@ export const termStats = (term: Term) => {
     events: important.length,
     exams: important.filter((item) => item.category === "exam").length,
     holidays: important.filter((item) => item.category === "holiday").length,
-    cycles: term.events.filter((item) => item.category === "cycle").length
+    cycles: term.events.filter((item) => item.category === "cycle").length,
+    notices: term.notices?.length ?? 0
   };
 };
 

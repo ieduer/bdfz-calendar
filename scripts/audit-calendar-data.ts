@@ -69,15 +69,30 @@ const schoolYearBounds = (yearId: string): [string, string] => {
 let eventCount = 0;
 let cycleCount = 0;
 let cycleWithDisplayCircle = 0;
+let cycleUnnumberedCount = 0;
 let cycleIrregularCount = 0;
+const eventIds = new Set<string>();
+const noticeIds = new Set<string>();
 
 for (const schoolYear of SCHOOL_YEARS) {
   const [schoolYearStart, schoolYearEnd] = schoolYearBounds(schoolYear.yearId);
   let latestEventDate = "";
 
   for (const term of schoolYear.terms) {
+    for (const notice of term.notices ?? []) {
+      if (!notice.id.trim() || !notice.title.trim()) {
+        addCalendarFinding("error", schoolYear, term.start, `学期待定事项缺少稳定 id 或标题（${term.id}）`);
+      }
+      if (noticeIds.has(notice.id)) {
+        addCalendarFinding("error", schoolYear, term.start, `待定事项 id 重复：${notice.id}`);
+      }
+      noticeIds.add(notice.id);
+    }
+
     for (const event of term.events) {
       eventCount += 1;
+      if (eventIds.has(event.id)) addFinding("error", schoolYear, term, event, `事件 id 重复：${event.id}`);
+      eventIds.add(event.id);
       const endDate = event.endDate ?? event.date;
       if (endDate > latestEventDate) latestEventDate = endDate;
 
@@ -102,7 +117,9 @@ for (const schoolYear of SCHOOL_YEARS) {
 
       cycleCount += 1;
       if (cycle.circle) cycleWithDisplayCircle += 1;
-      if (!cycle.circle) addFinding("error", schoolYear, term, event, "循环日显示缺少圈数字");
+      if (event.unnumberedCycle) cycleUnnumberedCount += 1;
+      if (!cycle.circle && !event.unnumberedCycle) addFinding("error", schoolYear, term, event, "循环日显示缺少圈数字");
+      if (cycle.circle && event.unnumberedCycle) addFinding("error", schoolYear, term, event, "原表无圈数字标记与显示圈数字冲突");
       if (cycle.irregular) {
         cycleIrregularCount += 1;
         addFinding(
@@ -131,6 +148,7 @@ console.log(
       events: eventCount,
       cycleEvents: cycleCount,
       cycleWithDisplayCircle,
+      cycleUnnumberedCount,
       cycleIrregularCount,
       today,
       errors: errors.length,
