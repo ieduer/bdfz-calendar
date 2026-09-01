@@ -1,4 +1,5 @@
 import { CalendarDays, Tag } from "lucide-react";
+import { createPortal } from "react-dom";
 import type { CalendarEvent } from "../types";
 import { categoryMeta, displayEventTitle, eventColor } from "../lib/calendar";
 import { formatRange } from "../lib/dates";
@@ -9,12 +10,12 @@ type EventSheetProps = {
 };
 
 export function EventSheet({ event, onClose }: EventSheetProps) {
-  if (!event) return null;
+  if (!event || typeof document === "undefined") return null;
   const meta = categoryMeta[event.category];
   const title = displayEventTitle(event);
   const color = eventColor(event);
 
-  return (
+  return createPortal(
     <div className="event-sheet" role="dialog" aria-modal="true" aria-label={title}>
       <button className="sheet-scrim" type="button" aria-label="关闭事件详情" onClick={onClose} />
       <section className="sheet-panel">
@@ -38,6 +39,7 @@ export function EventSheet({ event, onClose }: EventSheetProps) {
         </div>
         {event.note ? <p className="sheet-note">{event.note}</p> : null}
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -144,12 +145,79 @@ const chunkWeeks = (cells: MonthCell[]): MonthCell[][] => {
   return weeks;
 };
 
-const monthName = (month: string): string => `${Number(month.slice(5, 7))}月`;
-
 const sheetDateLabel = (cell: MonthCell): string => {
   if (!cell.date || !cell.day) return "";
-  return cell.day === 1 ? `${Number(cell.date.slice(5, 7))}月1日` : `${cell.day}.`;
+  return String(cell.day);
 };
+
+const WEEKDAY_NAMES: Record<number, string> = { 1: "周一", 2: "周二", 3: "周三", 4: "周四", 5: "周五", 6: "周六", 7: "周日" };
+
+const teachingWeekNumber = (event: CalendarEvent): number | null => {
+  const week = Number(event.audience?.match(/教学周\s*(\d+)/)?.[1]);
+  return Number.isFinite(week) ? week : null;
+};
+
+const isAdjustedCycle = (event: CalendarEvent): boolean => {
+  const cycle = getCycleInfo(event);
+  return Boolean(cycle && (cycle.irregular || event.unnumberedCycle));
+};
+
+const cycleAccessibleLabel = (event: CalendarEvent): string => {
+  const cycle = getCycleInfo(event);
+  if (!cycle) return displayEventTitle(event);
+  const week = teachingWeekNumber(event);
+  const base = `${cycle.letter} 循环课表日${week ? `，第 ${week} 教学周` : ""}`;
+  if (cycle.irregular) return `${base}，补课，按${WEEKDAY_NAMES[cycle.expectedWeekday]}课表`;
+  if (event.unnumberedCycle) return `${base}，临时调课安排`;
+  return base;
+};
+
+const adjustedCycleBadge = (event: CalendarEvent): string | null => {
+  const cycle = getCycleInfo(event);
+  if (!cycle) return null;
+  if (cycle.irregular) return `补课 · 按${WEEKDAY_NAMES[cycle.expectedWeekday]}课表`;
+  if (event.unnumberedCycle) return `调课 · ${cycle.letter}日课表`;
+  return null;
+};
+
+const weekContext = (week: MonthCell[], eventsByDate: Map<string, CalendarEvent[]>) => {
+  const uniqueEvents = new Map<string, CalendarEvent>();
+  week.forEach((cell) => {
+    if (!cell.date) return;
+    (eventsByDate.get(cell.date) ?? []).forEach((event) => uniqueEvents.set(event.id, event));
+  });
+  const events = Array.from(uniqueEvents.values());
+  const cycle = events.find((event) => event.category === "cycle" && teachingWeekNumber(event));
+  const weekNumber = cycle ? teachingWeekNumber(cycle) : null;
+  const exam = events.find((event) => event.category === "exam" && /期中|期末/.test(event.title));
+  return {
+    label: weekNumber ? `第 ${weekNumber} 周` : exam ? "考试周" : events.some((event) => event.category === "holiday") ? "假期" : "—",
+    note: exam ? `${exam.title.replace(/[（(].*?[）)]/g, "")}周 · 考试日不排循环课表` : null
+  };
+};
+
+const daysBetween = (from: string, to: string): number => {
+  const parse = (value: string) => {
+    const [year, month, day] = value.split("-").map(Number);
+    return Date.UTC(year, month - 1, day);
+  };
+  return Math.max(0, Math.round((parse(to) - parse(from)) / 86_400_000));
+};
+
+const currentSummary = (term: Term, today: string): string => {
+  const currentCycle = term.events.find((event) => event.category === "cycle" && event.date <= today && (event.endDate ?? event.date) >= today);
+  const cycle = currentCycle ? getCycleInfo(currentCycle) : null;
+  const week = currentCycle ? teachingWeekNumber(currentCycle) : null;
+  const todayText = ["今天", week ? `第 ${week} 教学周` : null, cycle ? `${cycle.letter} 循环日` : "无循环课表"].filter(Boolean).join(" · ");
+  const nextMilestone = term.events
+    .filter((event) => (event.category === "holiday" || event.category === "exam") && (event.endDate ?? event.date) >= today)
+    .sort((a, b) => compareDateText(a.date, b.date))[0];
+  if (!nextMilestone) return todayText;
+  if (nextMilestone.date <= today) return `${todayText} · ${nextMilestone.title}进行中`;
+  return `${todayText} · 距${nextMilestone.title} ${daysBetween(today, nextMilestone.date)} 天`;
+};
+
+const upcomingEventTitle = (event: CalendarEvent): string => adjustedCycleBadge(event) ?? displayEventTitle(event);
 
 const countMonthEvents = (month: string, eventsByDate: Map<string, CalendarEvent[]>): number => {
   const ids = new Set<string>();
@@ -213,17 +281,20 @@ function Legend({ events }: { events: CalendarEvent[] }) {
   }));
 
   return (
-    <div className="legend" aria-label="事件分类图例：课表为浅色标签，其他类别为实色">
-      {legendItems.map((item) => (
-        <span
-          key={item.category}
-          className={`legend-item ${item.category === "cycle" ? "is-tag" : "is-solid"}`}
-          style={{ "--event-accent": item.color } as EventAccentStyle}
-        >
-          <span className="legend-swatch" aria-hidden="true" />
-          {item.label}
-        </span>
-      ))}
+    <div className="legend" aria-label="事件分类及课表标记说明">
+      <div className="legend-items">
+        {legendItems.map((item) => (
+          <span
+            key={item.category}
+            className={`legend-item ${item.category === "cycle" ? "is-tag" : "is-solid"}`}
+            style={{ "--event-accent": item.color } as EventAccentStyle}
+          >
+            <span className="legend-swatch" aria-hidden="true" />
+            {item.label}
+          </span>
+        ))}
+      </div>
+      <p className="cycle-guide">A–F ＝ 循环课表日 · 左栏（及详情圈码）＝ 教学周</p>
     </div>
   );
 }
@@ -311,20 +382,30 @@ type SheetEventChipProps = {
 
 function SheetEventChip({ event, compact = false, onJumpToEvent }: SheetEventChipProps) {
   const eventClasses = eventClassNames(event);
+  const cycle = getCycleInfo(event);
+  const adjusted = isAdjustedCycle(event);
   const className = [
     "sheet-event-chip",
     `sheet-category-${event.category}`,
     event.category === "cycle" ? "is-cycle" : "",
     eventClasses.includes("event-cycle-irregular") ? "is-irregular" : "",
+    adjusted ? "is-adjusted" : "",
     compact ? "compact" : ""
   ]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <button type="button" className={className} style={eventAccentStyle(event)} onClick={() => onJumpToEvent(event)}>
+    <button
+      type="button"
+      className={className}
+      style={eventAccentStyle(event)}
+      title={cycle ? cycleAccessibleLabel(event) : displayEventTitle(event)}
+      aria-label={cycle ? cycleAccessibleLabel(event) : displayEventTitle(event)}
+      onClick={() => onJumpToEvent(event)}
+    >
       <span className="sheet-event-dot" aria-hidden="true" />
-      <span>{displayEventTitle(event)}</span>
+      <span>{cycle ? cycle.letter : displayEventTitle(event)}</span>
     </button>
   );
 }
@@ -386,6 +467,7 @@ function SheetDayCell({ cell, eventsByDate, stateEventsByDate, isFirstWeek = fal
   const hasCycle = stateEvents.some((event) => event.category === "cycle");
   const hasHoliday = stateEvents.some((event) => event.category === "holiday");
   const hasActivity = stateEvents.some((event) => event.category !== "cycle" && event.category !== "holiday");
+  const adjustedCycle = stateEvents.find(isAdjustedCycle);
   const isToday = date === today;
   const countForState = mobile ? stateEvents.length : dayEvents.length;
   const className = [
@@ -393,6 +475,7 @@ function SheetDayCell({ cell, eventsByDate, stateEventsByDate, isFirstWeek = fal
     isFirstWeek ? "is-first-week" : "",
     countForState > 0 ? "has-events" : "",
     hasCycle ? "has-class" : "",
+    adjustedCycle ? "has-adjusted-cycle" : "",
     hasHoliday ? "is-rest" : "",
     hasActivity ? "has-activity" : "",
     isToday ? "is-today" : "",
@@ -405,6 +488,7 @@ function SheetDayCell({ cell, eventsByDate, stateEventsByDate, isFirstWeek = fal
   if (mobile) {
     const cycleEvents = stateEvents.filter((event) => event.category === "cycle");
     const otherEvents = stateEvents.filter((event) => event.category !== "cycle");
+    const priorityEvent = otherEvents.find((event) => event.category === "exam" || event.category === "holiday") ?? otherEvents[0];
     const hasEvents = stateEvents.length > 0;
     const ariaLabel = `${isToday ? "今天 " : ""}${date}${hasEvents ? `，${stateEvents.length}项：${stateEvents.map(displayEventTitle).join("、")}` : "，无事项"}`;
     const inner = (
@@ -412,7 +496,7 @@ function SheetDayCell({ cell, eventsByDate, stateEventsByDate, isFirstWeek = fal
         <span className="sheet-date-number">{cell.day}</span>
         <span className="sheet-indicators" aria-hidden="true">
           {cycleEvents.map((event) => (
-            <span key={`${date}-${event.id}`} className="sheet-cycle-tag" style={eventAccentStyle(event)}>
+            <span key={`${date}-${event.id}`} className={`sheet-cycle-tag ${isAdjustedCycle(event) ? "is-adjusted" : ""}`} style={eventAccentStyle(event)} title={cycleAccessibleLabel(event)}>
               {getCycleInfo(event)?.letter ?? "·"}
             </span>
           ))}
@@ -421,6 +505,8 @@ function SheetDayCell({ cell, eventsByDate, stateEventsByDate, isFirstWeek = fal
           ))}
           {otherEvents.length > 3 ? <span className="sheet-ind-more">+{otherEvents.length - 3}</span> : null}
         </span>
+        {adjustedCycle ? <span className="sheet-adjusted-badge">{adjustedCycleBadge(adjustedCycle)}</span> : null}
+        {priorityEvent ? <span className="sheet-mobile-event-title">{displayEventTitle(priorityEvent)}</span> : null}
       </>
     );
     return hasEvents ? (
@@ -444,6 +530,7 @@ function SheetDayCell({ cell, eventsByDate, stateEventsByDate, isFirstWeek = fal
         {isToday ? <span className="sheet-today-flag">今天</span> : null}
       </div>
       <div className="sheet-day-events">
+        {adjustedCycle ? <span className="sheet-adjusted-badge">{adjustedCycleBadge(adjustedCycle)}</span> : null}
         {dayEvents.map((event) => (
           <SheetEventChip key={`${date}-${event.id}`} event={event} compact onJumpToEvent={onJumpToEvent} />
         ))}
@@ -478,15 +565,14 @@ function SheetMonth({ month, eventsByDate, stateEventsByDate, rangeEvents, today
         <strong>{monthLabel(month)}</strong>
         <span>{eventCount > 0 ? `${eventCount}项` : ""}</span>
       </div>
-      <div className="sheet-month-label" style={{ gridRow: `span ${weeks.length}` }}>
-        {monthName(month)}
-      </div>
       <div className="sheet-month-weeks">
         {weeks.map((week, weekIndex) => {
           const segments = rangeSegmentsByWeek[weekIndex] ?? [];
           const laneCount = segments.reduce((max, segment) => Math.max(max, segment.lane + 1), 0);
+          const context = weekContext(week, stateEventsByDate);
           return (
-            <div key={`${month}-week-${weekIndex}`} className="sheet-week-row" style={{ "--range-lanes": laneCount } as RangeLaneStyle}>
+            <div key={`${month}-week-${weekIndex}`} className={`sheet-week-row ${context.note ? "has-week-note" : ""}`} style={{ "--range-lanes": laneCount } as RangeLaneStyle}>
+              <div className="sheet-week-number">{context.label}</div>
               {week.map((cell, cellIndex) => (
                 <SheetDayCell
                   key={cell.date ?? `pad-${month}-${weekIndex}-${cellIndex}`}
@@ -511,6 +597,7 @@ function SheetMonth({ month, eventsByDate, stateEventsByDate, rangeEvents, today
                   ))}
                 </div>
               ) : null}
+              {context.note ? <div className="sheet-week-note">{context.note}</div> : null}
             </div>
           );
         })}
@@ -527,8 +614,8 @@ type DaySheetProps = {
 };
 
 function DaySheet({ date, events, onClose, onJumpToEvent }: DaySheetProps) {
-  if (!date) return null;
-  return (
+  if (!date || typeof document === "undefined") return null;
+  return createPortal(
     <div className="event-sheet day-sheet" role="dialog" aria-modal="true" aria-label={`${date} 事项`}>
       <button className="sheet-scrim" type="button" aria-label="关闭" onClick={onClose} />
       <section className="sheet-panel">
@@ -544,7 +631,7 @@ function DaySheet({ date, events, onClose, onJumpToEvent }: DaySheetProps) {
                 <button type="button" onClick={() => onJumpToEvent(event)}>
                   <span className={`dot ${eventClassNames(event).join(" ")}`} style={{ backgroundColor: eventColor(event) }} />
                   <span>
-                    <strong>{displayEventTitle(event)}</strong>
+                    <strong>{upcomingEventTitle(event)}</strong>
                     <small>
                       {categoryMeta[event.category].label}
                       {event.endDate && event.endDate !== event.date ? ` · ${formatRange(event.date, event.endDate)}` : ""}
@@ -559,7 +646,8 @@ function DaySheet({ date, events, onClose, onJumpToEvent }: DaySheetProps) {
           )}
         </ol>
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -648,7 +736,7 @@ function PreviewPanel({
       {months.length > 0 ? (
         <div className="sheet-scroll" ref={sheetScrollRef}>
           <div className="sheet-week sheet-week-header" aria-hidden="true">
-            <span>月</span>
+            <span>周次</span>
             {WEEKDAYS.map((day) => (
               <span key={day}>周{day}</span>
             ))}
@@ -699,14 +787,13 @@ export default function App() {
   const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
   const [rangeTitle, setRangeTitle] = useState("");
   const isMobile = useIsMobile();
-  const [expanded, setExpanded] = useState(() => (typeof window === "undefined" ? true : !window.matchMedia(MOBILE_QUERY).matches));
+  const [expanded, setExpanded] = useState(false);
   const highlightTimeoutRef = useRef<number | undefined>(undefined);
   const toggleFullscreen = () => setExpanded((value) => !value);
 
   const schoolYear = findCalendar(calendarId);
   const divisionsForYear = SCHOOL_YEARS.filter((item) => item.yearId === schoolYear.yearId);
   const term = schoolYear.terms.find((item) => item.id === termId) ?? schoolYear.terms[0];
-  const stats = useMemo(() => termStats(term), [term]);
   const today = localTodayText();
   const defaultFocusDate = dateInRange(today, term.start, term.end) ? today : term.start;
   const normalizedQuery = query.trim().toLowerCase();
@@ -740,31 +827,37 @@ export default function App() {
     [filteredEvents, highlightedEventId]
   );
   const termPreviewEvents = filteredEvents;
-  const { classDates, activityDates, restDates } = useMemo(() => {
+  const { classDates, activityDates, restDates, adjustedDates } = useMemo(() => {
     const classSet = new Set<string>();
     const activitySet = new Set<string>();
     const restSet = new Set<string>();
+    const adjustedSet = new Set<string>();
     filteredEvents.forEach((item) => {
       let date = item.date;
       const last = item.endDate ?? item.date;
       while (date <= last) {
-        if (item.category === "cycle") classSet.add(date);
+        if (item.category === "cycle") {
+          classSet.add(date);
+          if (isAdjustedCycle(item)) adjustedSet.add(date);
+        }
         else if (item.category === "holiday") restSet.add(date);
         else activitySet.add(date);
         date = addDays(date, 1);
       }
     });
-    return { classDates: classSet, activityDates: activitySet, restDates: restSet };
+    return { classDates: classSet, activityDates: activitySet, restDates: restSet, adjustedDates: adjustedSet };
   }, [filteredEvents]);
   const dayCellClassNames = (arg: { date: Date }): string[] => {
     const date = fcDateText(arg.date);
     return [
       classDates.has(date) ? "has-class" : "",
+      adjustedDates.has(date) ? "has-adjusted-cycle" : "",
       restDates.has(date) ? "is-rest" : "",
       activityDates.has(date) ? "has-activity" : ""
     ].filter(Boolean);
   };
   const nextEvents = useMemo(() => upcomingEvents(term, today, 7), [term, today]);
+  const timelySummary = useMemo(() => currentSummary(term, today), [term, today]);
   const todayEvents = useMemo(
     () =>
       term.events
@@ -789,16 +882,6 @@ export default function App() {
   const todayMonth = today.slice(0, 7);
   const termPreviewFocusMonth = termMonths.includes(todayMonth) ? todayMonth : defaultFocusDate.slice(0, 7);
   const yearPreviewFocusMonth = fullYearMonths.includes(todayMonth) ? todayMonth : fullYearMonths[0] ?? todayMonth;
-  const overviewStats = useMemo(
-    () => ({
-      events: yearEvents.length,
-      exams: yearEvents.filter((item) => item.category === "exam").length,
-      holidays: yearEvents.filter((item) => item.category === "holiday").length,
-      activities: yearEvents.filter((item) => item.category === "activity" || item.category === "ceremony").length,
-      notices: schoolYear.terms.reduce((count, item) => count + (item.notices?.length ?? 0), 0)
-    }),
-    [schoolYear.terms, yearEvents]
-  );
   const overviewMonths = useMemo(() => {
     const buckets = new Map<string, CalendarEvent[]>();
     filteredYearEvents.forEach((item) => {
@@ -807,8 +890,6 @@ export default function App() {
     });
     return Array.from(buckets.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredYearEvents]);
-  const isYearScope = mode === "overview" || (mode === "termPreview" && previewScope === "year");
-  const displayStats = isYearScope ? overviewStats : stats;
   const overviewFocusMonth = overviewMonths.some(([month]) => month === todayMonth) ? todayMonth : overviewMonths[0]?.[0] ?? todayMonth;
 
   useEffect(() => {
@@ -918,7 +999,7 @@ export default function App() {
   }, [mode, pendingJump]);
 
   useEffect(() => {
-    setExpanded(mode === "termPreview" && !isMobile);
+    if (isMobile) setExpanded(false);
   }, [mode, isMobile]);
 
   useEffect(() => {
@@ -1075,26 +1156,7 @@ export default function App() {
                 </button>
               ))}
             </nav>
-            <div className={`hero-stats ${displayStats.notices > 0 ? "has-notices" : ""}`} aria-label="当前校历统计">
-              <span>
-                <strong>{displayStats.events}</strong>
-                事件
-              </span>
-              <span>
-                <strong>{displayStats.exams}</strong>
-                考试
-              </span>
-              <span>
-                <strong>{displayStats.holidays}</strong>
-                假期
-              </span>
-              {displayStats.notices > 0 ? (
-                <span>
-                  <strong>{displayStats.notices}</strong>
-                  待定
-                </span>
-              ) : null}
-            </div>
+            <p className="today-summary" aria-label="今日校历摘要">{timelySummary}</p>
           </div>
         </div>
       </header>
@@ -1123,9 +1185,6 @@ export default function App() {
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索校历" aria-label="搜索校历事件" />
             </label>
             <div className="view-switch" aria-label="视图切换">
-              <button type="button" className={mode === "dayGridWeek" ? "active" : ""} onClick={() => setMode("dayGridWeek")} aria-label="周历">
-                周历
-              </button>
               <button type="button" className={mode === "dayGridMonth" ? "active" : ""} onClick={() => setMode("dayGridMonth")}>
                 月历
               </button>
@@ -1134,6 +1193,9 @@ export default function App() {
               </button>
               <button type="button" className={mode === "termPreview" ? "active" : ""} onClick={() => setMode("termPreview")} aria-label="学期预览">
                 学期
+              </button>
+              <button type="button" className={mode === "dayGridWeek" ? "active" : ""} onClick={() => setMode("dayGridWeek")} aria-label="周历">
+                周历
               </button>
             </div>
             <div className="subscribe-row">
@@ -1159,7 +1221,7 @@ export default function App() {
                     <button type="button" onClick={() => jumpToEvent(item)}>
                       <span className={`dot ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }} />
                       <span>
-                        <strong>{displayEventTitle(item)}</strong>
+                        <strong>{upcomingEventTitle(item)}</strong>
                         <small><CategoryBadge category={item.category} />{formatRange(item.date, item.endDate)}</small>
                       </span>
                     </button>
@@ -1183,7 +1245,7 @@ export default function App() {
                     <button type="button" onClick={() => jumpToEvent(item)}>
                       <span className={`dot ${eventClassNames(item).join(" ")}`} style={{ backgroundColor: eventColor(item) }} />
                       <span>
-                        <strong>{displayEventTitle(item)}</strong>
+                        <strong>{upcomingEventTitle(item)}</strong>
                         <small><CategoryBadge category={item.category} />{formatRange(item.date, item.endDate)}</small>
                       </span>
                     </button>
@@ -1316,10 +1378,10 @@ export default function App() {
       <nav className="mobile-tabbar" aria-label="视图切换">
         {(
           [
-            ["dayGridWeek", "周历"],
             ["dayGridMonth", "月历"],
             ["overview", "概览"],
-            ["termPreview", "学期"]
+            ["termPreview", "学期"],
+            ["dayGridWeek", "周历"]
           ] as Array<[CalendarMode, string]>
         ).map(([value, label]) => (
           <button

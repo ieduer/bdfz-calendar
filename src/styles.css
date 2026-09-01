@@ -26,6 +26,8 @@
   --day-activity-edge: #c79233;
   --day-rest-fill: linear-gradient(180deg, rgba(199, 174, 142, 0.22), rgba(199, 174, 142, 0.05));
   --day-rest-edge: #c2a079;
+  --day-adjusted-fill: linear-gradient(180deg, rgba(221, 139, 72, 0.28), rgba(221, 139, 72, 0.08));
+  --day-adjusted-edge: #c45f27;
   --sat-cell: var(--day-rest-fill);
   --sun-cell: var(--day-rest-fill);
   /* today — vivid coral, deliberately off the category palette so it never blends */
@@ -37,9 +39,9 @@
   --monet-bg: #f4efe2;
   --monet-bg-soft: #fbf7ec;
   --monet-ink: #394a4f;
-  --monet-muted: #728186;
+  --monet-muted: #627479;
   --monet-water: #7ba398;
-  --monet-water-deep: #547f74;
+  --monet-water-deep: #476f65;
   --monet-lily: #d8b4c4;
   --monet-petal: #efc9c0;
   --monet-sun: #ecca82;
@@ -370,7 +372,7 @@ select:focus-visible,
   margin: 0 0 8px;
   color: var(--monet-water-deep);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 650;
   letter-spacing: 0;
 }
@@ -397,38 +399,19 @@ h1 {
   line-height: 1.85;
 }
 
-.hero-stats {
-  display: inline-grid;
-  grid-template-columns: repeat(3, minmax(92px, 1fr));
-  gap: 6px;
-}
-
-.hero-stats.has-notices {
-  grid-template-columns: repeat(4, minmax(76px, 1fr));
-}
-
-.hero-stats span {
-  min-width: 76px;
-  min-height: 38px;
-  padding: 6px 9px;
+.today-summary {
+  max-width: 610px;
+  margin: 0;
+  padding: 9px 13px;
   border: 1px solid var(--monet-border-soft);
   border-radius: 10px;
   background: linear-gradient(168deg, rgba(255, 254, 250, 0.74), rgba(244, 238, 224, 0.46));
   box-shadow: var(--btn-shadow);
-  color: var(--monet-muted);
+  color: var(--monet-ink);
   font-family: var(--font-ui);
-  font-size: 11px;
-  line-height: 1.05;
-}
-
-.hero-stats strong {
-  display: inline-block;
-  margin-right: 4px;
-  color: var(--monet-water-deep);
-  font-family: var(--font-main);
-  font-size: 22px;
-  font-weight: 500;
-  line-height: 0.9;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .workspace {
@@ -895,7 +878,7 @@ h1 {
   background: rgba(var(--surface-rgb), 0.94);
   color: var(--monet-water-deep);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 750;
 }
 
@@ -917,7 +900,7 @@ h1 {
 .sheet-month {
   min-width: 760px;
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   border: 1px solid rgba(var(--ink-rgb), 0.26);
   border-top: 0;
@@ -930,10 +913,28 @@ h1 {
 }
 
 .sheet-month-title {
-  display: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(var(--ink-rgb), 0.18);
+  background: rgba(var(--surface-rgb), 0.7);
 }
 
-.sheet-month-label,
+.sheet-month-title strong {
+  color: var(--heading);
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.sheet-month-title span {
+  color: var(--monet-water-deep);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
 .sheet-day-cell {
   min-width: 0;
   min-height: 88px;
@@ -941,25 +942,12 @@ h1 {
   border-right: 1px solid rgba(var(--ink-rgb), 0.18);
 }
 
-.sheet-month-label,
 .sheet-day-cell.is-first-week {
   border-top: 0;
 }
 
-.sheet-month-label {
-  grid-column: 1;
-  display: grid;
-  place-items: center;
-  padding: 10px 6px;
-  color: var(--monet-water-deep);
-  background: rgba(var(--surface-rgb), 0.58);
-  font-family: var(--font-ui);
-  font-size: 15px;
-  font-weight: 750;
-}
-
 .sheet-month-weeks {
-  grid-column: 2;
+  grid-column: 1;
   min-width: 0;
   display: grid;
 }
@@ -969,8 +957,30 @@ h1 {
   position: relative;
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(7, minmax(88px, 1fr));
+  grid-template-columns: 72px repeat(7, minmax(88px, 1fr));
   align-items: stretch;
+}
+
+.sheet-week-number {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 88px;
+  padding: 8px 5px;
+  border-top: 1px solid rgba(var(--ink-rgb), 0.22);
+  border-right: 1px solid rgba(var(--ink-rgb), 0.18);
+  color: var(--monet-water-deep);
+  background: rgba(var(--surface-rgb), 0.66);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.sheet-week-row:first-child .sheet-week-number {
+  border-top: 0;
 }
 
 .sheet-day-cell {
@@ -1019,6 +1029,12 @@ h1 {
   box-shadow: inset 4px 0 0 var(--day-class-edge), inset 8px 0 0 var(--day-activity-edge);
 }
 
+/* 调课 / 周末补课：用暖橙状态覆盖普通上课绿，避免把关键到校日看成常规日。 */
+.sheet-day-cell.has-adjusted-cycle {
+  background: var(--day-adjusted-fill);
+  box-shadow: inset 4px 0 0 var(--day-adjusted-edge);
+}
+
 /* 今天：珊瑚红描边 + 角标 + 光晕，刻意避开课表/活动配色（放在最后，优先级压过三态底色） */
 .sheet-day-cell.is-today {
   background: var(--today-wash);
@@ -1037,8 +1053,8 @@ h1 {
 .sheet-date-number {
   color: var(--monet-water-deep);
   font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 750;
+  font-size: 16px;
+  font-weight: 800;
   line-height: 1;
 }
 
@@ -1089,7 +1105,7 @@ h1 {
   position: absolute;
   z-index: 2;
   top: 32px;
-  left: 0;
+  left: 72px;
   right: 0;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -1119,7 +1135,7 @@ h1 {
   );
   box-shadow: inset 4px 0 0 var(--event-accent), 0 2px 6px rgba(var(--ink-rgb), 0.14);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
   line-height: 1.35;
   text-align: left;
@@ -1146,7 +1162,7 @@ h1 {
   padding: 2px 8px;
   border-radius: 999px;
   box-shadow: inset 3px 0 0 var(--event-accent), 0 2px 7px rgba(var(--ink-rgb), 0.16);
-  font-size: 11px;
+  font-size: 12.5px;
   line-height: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -1174,7 +1190,7 @@ h1 {
 .sheet-event-chip.compact {
   padding: 3px 5px 3px 5px;
   gap: 4px;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.25;
 }
 
@@ -1199,6 +1215,54 @@ h1 {
 .sheet-event-chip.is-irregular {
   outline: 2px solid rgba(56, 91, 85, 0.42);
   outline-offset: 1px;
+}
+
+.sheet-event-chip.is-adjusted,
+.sheet-cycle-tag.is-adjusted {
+  border-color: color-mix(in srgb, var(--day-adjusted-edge) 72%, transparent);
+  color: color-mix(in srgb, var(--day-adjusted-edge) 84%, var(--chip-ink-mix));
+  background: color-mix(in srgb, var(--day-adjusted-edge) 18%, var(--paper));
+  box-shadow: inset 3px 0 0 var(--day-adjusted-edge);
+}
+
+.sheet-adjusted-badge,
+.sheet-week-note {
+  font-family: var(--font-ui);
+  font-weight: 800;
+}
+
+.sheet-adjusted-badge {
+  display: block;
+  min-width: 0;
+  padding: 3px 5px;
+  border: 1px solid color-mix(in srgb, var(--day-adjusted-edge) 52%, transparent);
+  border-radius: 5px;
+  color: color-mix(in srgb, var(--day-adjusted-edge) 82%, var(--chip-ink-mix));
+  background: color-mix(in srgb, var(--day-adjusted-edge) 14%, var(--paper));
+  font-size: 12.5px;
+  line-height: 1.25;
+}
+
+.sheet-week-row.has-week-note .sheet-day-cell,
+.sheet-week-row.has-week-note .sheet-week-number {
+  min-height: calc(116px + var(--range-lanes, 0) * 23px);
+  padding-bottom: 33px;
+}
+
+.sheet-week-note {
+  position: absolute;
+  z-index: 4;
+  left: 78px;
+  right: 6px;
+  bottom: 5px;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, #9e3154 42%, transparent);
+  border-radius: 7px;
+  color: color-mix(in srgb, #9e3154 78%, var(--chip-ink-mix));
+  background: color-mix(in srgb, #9e3154 10%, rgba(var(--surface-rgb), 0.96));
+  font-size: 12.5px;
+  line-height: 1.25;
+  text-align: center;
 }
 
 .sheet-range-chip.is-irregular {
@@ -1420,6 +1484,12 @@ h1 {
   box-shadow: inset 0 0 0 1px rgba(var(--surface-rgb), 0.78), 0 0 0 2px rgba(236, 202, 130, 0.46);
 }
 
+.fc .event-cycle-adjusted {
+  border-color: var(--day-adjusted-edge) !important;
+  color: color-mix(in srgb, var(--day-adjusted-edge) 82%, var(--chip-ink-mix)) !important;
+  background: color-mix(in srgb, var(--day-adjusted-edge) 18%, var(--paper)) !important;
+}
+
 /* 周末底色：统一为暖中性“休息”色 */
 .fc .fc-day-sat,
 .fc .fc-day-sun {
@@ -1449,6 +1519,11 @@ h1 {
     linear-gradient(90deg, rgba(95, 158, 132, 0.14) 0 12px, transparent 12px),
     var(--day-activity-fill);
   box-shadow: inset 4px 0 0 var(--day-class-edge), inset 8px 0 0 var(--day-activity-edge);
+}
+
+.fc .fc-daygrid-day.has-adjusted-cycle .fc-daygrid-day-frame {
+  background: var(--day-adjusted-fill);
+  box-shadow: inset 4px 0 0 var(--day-adjusted-edge);
 }
 
 /* 今天若恰好有课/活动：脊条 + 珊瑚红描边并存 */
@@ -1518,7 +1593,8 @@ h1 {
 
 .section-heading h2 {
   color: var(--heading);
-  font-size: clamp(25px, 3.5vw, 42px);
+  font-size: clamp(20px, 2.4vw, 24px);
+  line-height: 1.15;
 }
 
 .panel-links {
@@ -1530,9 +1606,9 @@ h1 {
   margin-top: auto;
   padding-top: 10px;
   border-top: 1px solid var(--monet-border-soft);
-  color: var(--monet-muted);
+  color: var(--monet-ink);
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .panel-link-group {
@@ -1542,6 +1618,13 @@ h1 {
 }
 
 .legend {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.legend-items {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1553,10 +1636,19 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: var(--monet-muted);
+  color: var(--monet-ink);
   font-family: var(--font-ui);
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.cycle-guide {
+  margin: 0;
+  color: var(--monet-ink);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.45;
 }
 
 .legend-swatch {
@@ -1580,7 +1672,7 @@ h1 {
 .month-page .panel-links {
   margin-top: auto;
   padding-top: 6px;
-  font-size: 11px;
+  font-size: 12.5px;
 }
 
 .panel-links a {
@@ -1594,10 +1686,10 @@ h1 {
 .event-sheet {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 2147483647;
   display: grid;
   place-items: end center;
-  padding: 18px;
+  padding: 18px 18px calc(88px + env(safe-area-inset-bottom));
 }
 
 .sheet-scrim {
@@ -1610,12 +1702,25 @@ h1 {
 .sheet-panel {
   position: relative;
   width: min(520px, 100%);
-  overflow: hidden;
+  max-height: calc(100dvh - 124px - env(safe-area-inset-bottom));
+  overflow: auto;
   border: 1px solid var(--monet-border);
   border-radius: 16px;
   padding: 26px;
   background: rgba(var(--surface-rgb), 0.96);
   box-shadow: var(--shadow-panel);
+}
+
+.day-sheet .sheet-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.day-sheet-list {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .sheet-ribbon {
@@ -1697,40 +1802,66 @@ h1 {
   }
 
   .masthead {
-    padding: 14px;
+    margin-bottom: 8px;
+    padding: 9px 10px;
   }
 
   .masthead-top {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 7px 9px;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
   }
 
   .brand strong {
-    font-size: 18px;
+    font-size: 17px;
+  }
+
+  .brand small {
+    margin-top: 1px;
+    font-size: 11.5px;
+  }
+
+  .source-status {
+    padding: 4px 7px;
+    font-size: 10.5px;
   }
 
   .term-strip {
-    align-items: stretch;
-    flex-direction: column;
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    justify-content: stretch;
+    gap: 7px;
   }
 
   .term-tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
   }
 
-  .hero-stats {
-    grid-template-columns: 1fr 1fr 1fr;
+  .term-tabs button {
+    min-height: 32px;
+    padding: 5px 9px;
+    font-size: 12.5px;
   }
 
-  .hero-stats span {
+  .today-summary {
     min-width: 0;
-    padding: 8px 9px;
-  }
-
-  .hero-stats strong {
-    font-size: 22px;
+    padding: 7px 9px;
+    font-size: 12.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .side-rail {
@@ -1980,20 +2111,20 @@ h1 {
     padding-bottom: 2px;
   }
 
-  /* 星期表头：去掉“月”列，7 列等分铺满 */
+  /* 周次左栏 + 七天，月份由整行分隔标题承载。 */
   .sheet-week-header {
     min-width: 0;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: 44px repeat(7, 1fr);
     border-radius: 12px 12px 0 0;
   }
 
   .sheet-week-header > span:first-child {
-    display: none;
+    display: grid;
   }
 
   .sheet-week-header span {
-    min-height: 30px;
-    font-size: 11px;
+    min-height: 32px;
+    font-size: 12.5px;
   }
 
   /* 月份：单列布局，标题改为顶部行（隐藏侧边竖排月标签） */
@@ -2007,10 +2138,6 @@ h1 {
 
   .sheet-month + .sheet-month {
     margin-top: 14px;
-  }
-
-  .sheet-month-label {
-    display: none;
   }
 
   .sheet-month-title {
@@ -2034,7 +2161,7 @@ h1 {
   .sheet-month-title span {
     color: var(--monet-water-deep);
     font-family: var(--font-ui);
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 650;
   }
 
@@ -2043,18 +2170,25 @@ h1 {
   }
 
   .sheet-week-row {
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: 44px repeat(7, 1fr);
   }
 
-  /* 紧凑日格：所有格子（含空白补位格）统一高度 */
+  .sheet-week-number {
+    min-height: 76px;
+    padding: 5px 3px;
+    font-size: 12.5px;
+    line-height: 1.25;
+  }
+
+  /* 日格保留一行重点标题，避免只剩字母和圆点。 */
   .sheet-week-row .sheet-day-cell {
-    min-height: 54px;
+    min-height: 76px;
   }
 
   .sheet-day-cell.is-mobile {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
     align-items: stretch;
     padding: 5px 4px;
     text-align: left;
@@ -2072,7 +2206,8 @@ h1 {
 
   .sheet-day-cell.is-mobile .sheet-date-number {
     align-self: flex-start;
-    font-size: 12px;
+    font-size: 15px;
+    font-weight: 800;
   }
 
   .sheet-indicators {
@@ -2089,15 +2224,15 @@ h1 {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 16px;
-    height: 16px;
+    min-width: 18px;
+    height: 18px;
     padding: 0 3px;
     border-radius: 5px;
     border: 1px solid color-mix(in srgb, var(--event-accent) 42%, transparent);
     background: color-mix(in srgb, var(--event-accent) 16%, rgba(var(--surface-rgb), 0.92));
     color: color-mix(in srgb, var(--event-accent) 72%, var(--chip-ink-mix));
     font-family: var(--font-ui);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     line-height: 1;
   }
@@ -2114,6 +2249,43 @@ h1 {
     font-size: 9.5px;
     font-weight: 700;
     line-height: 1;
+  }
+
+  .sheet-mobile-event-title,
+  .sheet-day-cell.is-mobile .sheet-adjusted-badge {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--monet-ink);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .sheet-day-cell.is-mobile .sheet-adjusted-badge {
+    padding: 2px 3px;
+    color: color-mix(in srgb, var(--day-adjusted-edge) 82%, var(--chip-ink-mix));
+  }
+
+  .sheet-range-layer {
+    left: 44px;
+  }
+
+  .sheet-week-row.has-week-note .sheet-day-cell,
+  .sheet-week-row.has-week-note .sheet-week-number {
+    min-height: 104px;
+    padding-bottom: 30px;
+  }
+
+  .sheet-week-note {
+    left: 48px;
+    right: 4px;
+    bottom: 4px;
+    padding: 4px 6px;
+    font-size: 12.5px;
   }
 
   /* 标题栏：允许换行；移动端隐藏全屏按钮（底部切换已够用，且全屏会盖住切换栏） */
@@ -2137,7 +2309,8 @@ h1 {
 
   /* 当日事项底部抽屉的列表可滚动 */
   .day-sheet-list {
-    max-height: 52vh;
+    max-height: none;
+    flex: 1 1 auto;
     overflow: auto;
     margin-top: 18px;
   }
@@ -2149,14 +2322,14 @@ h1 {
 
   .mobile-tabbar {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 40;
-    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    z-index: 2147483000;
+    padding: 8px 78px calc(8px + env(safe-area-inset-bottom)) 10px;
     border-top: 1px solid var(--monet-border);
     background: rgba(var(--surface-rgb), 0.94);
     backdrop-filter: blur(18px) saturate(150%);
@@ -2229,12 +2402,14 @@ h1 {
     --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.5);
     --shadow-panel: 0 26px 60px rgba(0, 0, 0, 0.6);
 
-    --day-class-fill: linear-gradient(180deg, rgba(123, 195, 168, 0.24), rgba(123, 195, 168, 0.05));
+    --day-class-fill: linear-gradient(180deg, rgba(95, 194, 160, 0.42), rgba(47, 112, 91, 0.2));
     --day-class-edge: #5fc2a0;
-    --day-activity-fill: linear-gradient(180deg, rgba(236, 200, 120, 0.1), rgba(236, 200, 120, 0.02));
+    --day-activity-fill: linear-gradient(180deg, rgba(236, 200, 120, 0.3), rgba(138, 100, 20, 0.14));
     --day-activity-edge: #e0b35e;
-    --day-rest-fill: linear-gradient(180deg, rgba(196, 170, 132, 0.16), rgba(196, 170, 132, 0.04));
+    --day-rest-fill: linear-gradient(180deg, rgba(196, 133, 92, 0.42), rgba(110, 67, 44, 0.2));
     --day-rest-edge: #c2a079;
+    --day-adjusted-fill: linear-gradient(180deg, rgba(235, 137, 64, 0.5), rgba(145, 67, 29, 0.24));
+    --day-adjusted-edge: #ff9a54;
     --sat-cell: var(--day-rest-fill);
     --sun-cell: var(--day-rest-fill);
 
@@ -2282,7 +2457,7 @@ h1 {
   }
 
   /* 两处写死的奶白渐变（hero 统计块 / 侧栏事件按钮） */
-  .hero-stats span {
+  .today-summary {
     background: linear-gradient(168deg, rgba(58, 72, 78, 0.5), rgba(38, 49, 54, 0.4));
   }
 

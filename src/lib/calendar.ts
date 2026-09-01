@@ -126,7 +126,8 @@ export const eventClassNames = (item: CalendarEvent): string[] => {
   return [
     categoryMeta[item.category].className,
     cycle ? `event-cycle-${cycle.letter.toLowerCase()}` : "",
-    cycle?.irregular ? "event-cycle-irregular" : ""
+    cycle?.irregular ? "event-cycle-irregular" : "",
+    cycle && (cycle.irregular || item.unnumberedCycle) ? "event-cycle-adjusted" : ""
   ].filter(Boolean);
 };
 
@@ -193,7 +194,12 @@ export const toFullCalendarEvent = (item: CalendarEvent): EventInput => {
 };
 
 export const upcomingEvents = (term: Term, today: string, max = 8): CalendarEvent[] => {
-  const events = importantEvents(term.events);
+  const events = term.events
+    .filter((item) => {
+      const cycle = getCycleInfo(item);
+      return item.category !== "cycle" || Boolean(cycle && (cycle.irregular || item.unnumberedCycle));
+    })
+    .sort((a, b) => compareDateText(a.date, b.date));
   const future = events.filter((item) => (item.endDate ?? item.date) >= today);
   return (future.length > 0 ? future : events).slice(0, max);
 };
