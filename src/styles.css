@@ -2540,3 +2540,5 @@ h1 {
 @media (prefers-color-scheme: dark) {
   .sheet-cycle-tag:not(.is-adjusted) { color: #c9eadb; background: #243f38; }
 }
+/* Opaque sticky weekdays must remain above scrolled event chips. */
+.sheet-week-header { z-index: 10; background: var(--paper); }
