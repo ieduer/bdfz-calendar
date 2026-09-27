@@ -25,3 +25,13 @@
 - 2027-01-18：A（一）
 
 信息技术合格考、通用技术合格考、学业水平合格考在原表中均为“待定”。站点将它们展示在“日期待定”区域，不为其虚构日期，也不写入 ICS。
+
+## 2026-09-27 预科部第一学期更新
+
+Authority: authenticated Brave rendered Yuque sheet `26-27学年（预科部）`, supplied anchor `#fTTO`. Visually read rows 1–54 in three overlapping views; no account, cookies, raw response, or private student data saved. Title: `2026-2027学年第一学期预科部校历`.
+
+Transcribed 119 explicitly printed A–F / 答疑A–F cells, 13 dated events, and 3 January undated examination notices. The source has no circled teaching weeks: absence of numbering is not evidence of a shifted schedule. Every Saturday F is regular unless the source date differs; September 27 and January 3 are Sunday F. November 2 is 答疑C, January 11 is 答疑D. August 31 is explicitly 答疑A before September 1 opening.
+
+Key dates: Mid-Autumn September 25–26; National Day October 1–5; October exam October 6–7; English listening/speaking practice October 15; midterm November 3–5; outreach November 6; review November 7; December exam December 4–5; New Year January 1–2; final January 12–14; January 25–30 答疑A–F; winter holiday January 31–February 14; return consultation February 15; February 23–27 B–F. The original first-semester sheet includes the February rows; no second-semester boundary or missing A day has been invented. February 16–22 remain blank. The November note says the timetable changes after midterm but gives no precise effective day; retain this as the midterm event note.
+
+The dated event feed excludes all daily A–F/答疑 cycle entries and all three undated notices. 2026-2027 high-school data and all historical calendars remain unchanged.

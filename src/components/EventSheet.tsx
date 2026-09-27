@@ -1,3 +1,4 @@
+import { useDialog } from "./useDialog";
 import { CalendarDays, Tag } from "lucide-react";
 import { createPortal } from "react-dom";
 import type { CalendarEvent } from "../types";
@@ -10,13 +11,14 @@ type EventSheetProps = {
 };
 
 export function EventSheet({ event, onClose }: EventSheetProps) {
+  const dialogRef = useDialog(Boolean(event), onClose);
   if (!event || typeof document === "undefined") return null;
   const meta = categoryMeta[event.category];
   const title = displayEventTitle(event);
   const color = eventColor(event);
 
   return createPortal(
-    <div className="event-sheet" role="dialog" aria-modal="true" aria-label={title}>
+    <div ref={dialogRef} className="event-sheet" role="dialog" aria-modal="true" aria-label={title}>
       <button className="sheet-scrim" type="button" aria-label="关闭事件详情" onClick={onClose} />
       <section className="sheet-panel">
         <div className={`sheet-ribbon ${meta.className}`} style={{ backgroundColor: color }} />

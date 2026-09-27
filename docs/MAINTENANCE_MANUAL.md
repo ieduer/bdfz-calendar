@@ -23,6 +23,7 @@ Previous school years must remain in `SCHOOL_YEARS` so historical calendars stay
 
 The current dataset contains:
 
+- `2026-2027-prep`: 预科部第一学期，119课表日、13事件、3日期待定事项；保留原表空白及无圈码。
 - `2026-2027-high`: 高中部第一学期，partial-source（语雀当前只发布第一学期）
 - `2025-2026-high`: 高中部，complete
 - `2025-2026-prep`: 预科部，partial-source
@@ -140,6 +141,7 @@ ICS subscription feeds are generated during `npm run build` into `public/feeds/`
 
 Current feeds:
 
+- `2026-2027-prep-all.ics`
 - `2026-2027-high-all.ics`
 - `2025-2026-high-all.ics`
 - `2025-2026-prep-all.ics`

@@ -10,7 +10,8 @@
     "build": "tsc -b && vite build --config vite.config.ts",
     "preview": "vite preview --config vite.config.ts --host 127.0.0.1",
     "deploy": "npm run build && wrangler pages deploy dist --project-name bdfz-calendar",
-    "predeploy": "bash /Users/ylsuen/CF/scripts/git-deploy-gate.sh"
+    "predeploy": "bash /Users/ylsuen/CF/scripts/git-deploy-gate.sh",
+    "test": "node --import tsx scripts/test-calendar.ts"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",

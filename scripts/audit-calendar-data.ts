@@ -75,7 +75,8 @@ const eventIds = new Set<string>();
 const noticeIds = new Set<string>();
 
 for (const schoolYear of SCHOOL_YEARS) {
-  const [schoolYearStart, schoolYearEnd] = schoolYearBounds(schoolYear.yearId);
+  const [defaultStart, schoolYearEnd] = schoolYearBounds(schoolYear.yearId);
+  const schoolYearStart = schoolYear.sourceStart ?? defaultStart;
   let latestEventDate = "";
 
   for (const term of schoolYear.terms) {

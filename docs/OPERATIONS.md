@@ -153,3 +153,18 @@ update `PROJECT_STATE.md` in the same task.
 Every AI closeout must record changed files, generated artifacts, tests, live
 version/deployment, rollback, dirty-tree state, unresolved follow-ups, and the
 manual/state updates in `reports/agent_action_log.jsonl`. Chat is not a durable handoff.
+
+
+## 2026-09-27 prep data and usability candidate
+
+- Source: authenticated Brave Yuque `26-27学年（预科部）`, visually verified rows 1–54; see `source-notes-2026-2027.md`. New calendar `2026-2027-prep`: 119 source-labelled cycle dates, 13 dated events, 3 undated January examinations. Other five calendar objects remain structurally identical to accepted source `7800031`.
+- User-facing changes: current division and source coverage visible; division-specific share URL via `?calendar=2026-2027-prep`; explicit search result list including undated notices; mobile division/search/subscription controls precede the calendar; horizontal swipe navigation preserves vertical scrolling; historical date summary and source labels corrected; both detail dialogs support focus containment, Escape and focus restoration; readable dark-mode cycle tags and reduced-motion support.
+- Ordinary unnumbered cycles no longer imply adjusted classes. Consultation prefixes remain visible and source blanks are not inferred. Generated feed includes the 13 dated events only.
+- Validation: `npm test`; `node --import tsx scripts/audit-calendar-data.ts`; `node --import tsx scripts/generate-feeds.ts`; `node node_modules/typescript/bin/tsc -b`; `node node_modules/vite/bin/vite.js build --config vite.config.ts`. Direct Node invocation avoids tsx CLI IPC restrictions in sandboxed validation.
+- Production publisher remains registered `managed_manual`: use the preview-verified receipt and `/Users/ylsuen/CF/scripts/release-pages-transaction.mjs`, not the legacy direct-deploy example above. No bindings, domains, shared navigation, auth, other services, or dependencies changed.
+- Baseline was freshly read as `7d53cf5e-1a2d-4145-8a7d-634f7ac854b3` / `7800031`; rebuilding that immutable source reproduced both live JS/CSS SHA-256 values exactly.
+- Final deployment and acceptance receipt: `/Users/ylsuen/CF/reports/operations/calendar-prep-ui-20260927/RELEASE.md`.
+
+## Local runtime disk profile
+
+Canonical Git/object store: `/Users/ylsuen/CF/sites/tools/calendar`; dirty unrelated instruction/manual edits are preserved. One isolated task worktree uses the same object store and existing dependency tree only when lockfile SHA-256 matches. Normal update peak: 2 GiB; preflight: `scripts/check_workspace_disk_budget.sh --operation calendar-prep-ui --peak-gib 2` from CF root. Worktree/build/feed/tsbuildinfo are reproducible derivatives; baseline exported source is comparison-only and can never publish. Browser screenshots, source notes and release receipts are retained evidence. Manifest: `/Users/ylsuen/CF/reports/private/runtime-artifact-manifests/calendar-prep-ui-20260927/manifest.json`; owner `codex-calendar-prep-ui`, running and closeout gates use `scripts/check_task_runtime_manifest.mjs`. No new physical dependencies or browser download is needed. ENOSPC invalidates all task-generated outputs; recover reserve before regenerating from pinned Git/lockfile. The pre-existing shared dependency tree is not this task's cleanup target.

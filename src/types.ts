@@ -18,6 +18,7 @@ export type CalendarEvent = {
   audience?: string;
   note?: string;
   unnumberedCycle?: boolean;
+  cycleContext?: "regular" | "consultation";
   source?: "yuque-copy" | "official-pdf" | "manual-placeholder";
 };
 
@@ -48,6 +49,8 @@ export type SchoolYear = {
   division: string;
   status?: "complete" | "partial-source" | "pending-source";
   activeTermId: Term["id"];
+  coverageNote?: string;
+  sourceStart?: string;
   source: {
     title: string;
     url: string;

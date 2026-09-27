@@ -2499,3 +2499,44 @@ h1 {
     outline-color: rgba(240, 200, 120, 0.95);
   }
 }
+
+/* Calendar orientation, source clarity, and comfortable controls. */
+.control-label { margin: 0 0 8px; font: 600 13px var(--font-ui); color: var(--monet-muted); }
+.source-context { border-top: 1px solid var(--monet-border); padding: 14px 2px; font: 13px/1.7 var(--font-ui); }
+.source-context strong { color: var(--heading); font-size: 14px; }
+.source-context p { margin: 6px 0 0; color: var(--monet-muted); }
+.source-context a { color: var(--monet-water-deep); text-decoration: underline; text-underline-offset: 3px; }
+.search-box input { min-width: 0; }
+.clear-search { min-width: 36px; min-height: 36px; padding: 0; font: 22px var(--font-ui); }
+.search-results { border-block: 1px solid var(--monet-border); margin-block: 12px; padding-block: 8px; }
+.search-results > p { font: 13px/1.6 var(--font-ui); }
+.search-results > .event-list { max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
+.select-grid select, .calendar-nav button, .export-button, .view-switch button { min-height: 44px; }
+.brand small { font-size: 13px; }
+.sheet-panel { overscroll-behavior: contain; }
+@media (max-width: 760px) {
+  .source-context { padding-block: 10px; }
+  .brand small { font-size: 12px; }
+  .source-status { font-size: 12px; }
+  .select-grid select { font-size: 16px; }
+  .search-box input { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media (max-width: 720px) {
+  /* Keep division, search and subscription ahead of every calendar view. */
+  .side-rail { display: contents; }
+  .side-rail > .control-block { order: 0; padding: 10px 12px; border-bottom: 1px solid var(--monet-border); }
+  .side-rail .control-label { display: none; }
+  .side-rail .select-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+  .side-rail > .source-context { order: 3; }
+  .side-rail > .upcoming-block { order: 4; }
+  .overview-panel { order: 1; }
+  .month-page .control-block select { min-height: 44px; }
+}
+.sheet-day-cell.has-class:not(.is-today) .sheet-date-number { color: var(--monet-water-deep); }
+@media (prefers-color-scheme: dark) {
+  .sheet-cycle-tag:not(.is-adjusted) { color: #c9eadb; background: #243f38; }
+}

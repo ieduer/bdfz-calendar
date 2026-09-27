@@ -1,3 +1,4 @@
+import { useDialog } from "./components/useDialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
@@ -6,7 +7,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import zhCnLocale from "@fullcalendar/core/locales/zh-cn";
 import type { CalendarApi, DatesSetArg, EventClickArg } from "@fullcalendar/core";
-import { ArrowUpDown, CalendarDays, ExternalLink, Maximize2, Minimize2, Rss, Search, Sparkles } from "lucide-react";
+import { ArrowLeftRight, CalendarDays, ExternalLink, Maximize2, Minimize2, Rss, Search, Sparkles } from "lucide-react";
 import { ACTIVE_SCHOOL_YEAR_ID, SCHOOL_YEARS } from "./data/schoolYears";
 import type { CalendarEvent, EventCategory, SchoolYear, Term, TermNotice } from "./types";
 import {
@@ -159,24 +160,26 @@ const teachingWeekNumber = (event: CalendarEvent): number | null => {
 
 const isAdjustedCycle = (event: CalendarEvent): boolean => {
   const cycle = getCycleInfo(event);
-  return Boolean(cycle && (cycle.irregular || event.unnumberedCycle));
+  return Boolean(cycle && (cycle.irregular || cycle.prefix || (event.unnumberedCycle && !event.cycleContext)));
 };
 
 const cycleAccessibleLabel = (event: CalendarEvent): string => {
   const cycle = getCycleInfo(event);
   if (!cycle) return displayEventTitle(event);
+  if (cycle.prefix) return `${cycle.prefix} · ${cycle.letter}日安排`;
   const week = teachingWeekNumber(event);
   const base = `${cycle.letter} 循环课表日${week ? `，第 ${week} 教学周` : ""}`;
   if (cycle.irregular) return `${base}，补课，按${WEEKDAY_NAMES[cycle.expectedWeekday]}课表`;
-  if (event.unnumberedCycle) return `${base}，临时调课安排`;
+  if (event.unnumberedCycle && !event.cycleContext) return `${base}，临时调课安排`;
   return base;
 };
 
 const adjustedCycleBadge = (event: CalendarEvent): string | null => {
   const cycle = getCycleInfo(event);
   if (!cycle) return null;
+  if (cycle.prefix) return `${cycle.prefix} · ${cycle.letter}日安排`;
   if (cycle.irregular) return `补课 · 按${WEEKDAY_NAMES[cycle.expectedWeekday]}课表`;
-  if (event.unnumberedCycle) return `调课 · ${cycle.letter}日课表`;
+  if (event.unnumberedCycle && !event.cycleContext) return `调课 · ${cycle.letter}日课表`;
   return null;
 };
 
@@ -205,10 +208,11 @@ const daysBetween = (from: string, to: string): number => {
 };
 
 const currentSummary = (term: Term, today: string): string => {
+  if (today < term.start || today > term.end) return `${term.label} · ${today < term.start ? "尚未开始" : "已结束"} · 今天 ${today}`;
   const currentCycle = term.events.find((event) => event.category === "cycle" && event.date <= today && (event.endDate ?? event.date) >= today);
   const cycle = currentCycle ? getCycleInfo(currentCycle) : null;
   const week = currentCycle ? teachingWeekNumber(currentCycle) : null;
-  const todayText = ["今天", week ? `第 ${week} 教学周` : null, cycle ? `${cycle.letter} 循环日` : "无循环课表"].filter(Boolean).join(" · ");
+  const todayText = ["今天", week ? `第 ${week} 教学周` : null, cycle ? `${cycle.prefix || ""}${cycle.letter} 日` : "无循环课表"].filter(Boolean).join(" · ");
   const nextMilestone = term.events
     .filter((event) => (event.category === "holiday" || event.category === "exam") && (event.endDate ?? event.date) >= today)
     .sort((a, b) => compareDateText(a.date, b.date))[0];
@@ -294,7 +298,7 @@ function Legend({ events }: { events: CalendarEvent[] }) {
           </span>
         ))}
       </div>
-      <p className="cycle-guide">A–F ＝ 循环课表日 · 左栏（及详情圈码）＝ 教学周</p>
+      <p className="cycle-guide">A–F ＝ 课表日 · 圈码有标才显示 · 空白日期请以学校通知为准</p>
     </div>
   );
 }
@@ -614,9 +618,10 @@ type DaySheetProps = {
 };
 
 function DaySheet({ date, events, onClose, onJumpToEvent }: DaySheetProps) {
+  const dialogRef = useDialog(Boolean(date), onClose);
   if (!date || typeof document === "undefined") return null;
   return createPortal(
-    <div className="event-sheet day-sheet" role="dialog" aria-modal="true" aria-label={`${date} 事项`}>
+    <div ref={dialogRef} className="event-sheet day-sheet" role="dialog" aria-modal="true" aria-label={`${date} 事项`}>
       <button className="sheet-scrim" type="button" aria-label="关闭" onClick={onClose} />
       <section className="sheet-panel">
         <button className="sheet-close" type="button" onClick={onClose}>
@@ -723,10 +728,10 @@ function PreviewPanel({
         </div>
         <div className="panel-heading-controls">
           <div className="scope-switch" role="group" aria-label="预览范围">
-            <button type="button" className={scope === "term" ? "active" : ""} onClick={() => onScopeChange("term")}>
+            <button type="button" aria-pressed={scope === "term"} className={scope === "term" ? "active" : ""} onClick={() => onScopeChange("term")}>
               本学期
             </button>
-            <button type="button" className={scope === "year" ? "active" : ""} onClick={() => onScopeChange("year")}>
+            <button type="button" aria-pressed={scope === "year"} className={scope === "year" ? "active" : ""} onClick={() => onScopeChange("year")}>
               全年
             </button>
           </div>
@@ -776,8 +781,8 @@ export default function App() {
   const calendarRef = useRef<FullCalendar | null>(null);
   const calendarPanelRef = useRef<HTMLDivElement | null>(null);
   const overviewScrollRef = useRef<HTMLDivElement | null>(null);
-  const initialSchoolYear = findCalendar(ACTIVE_SCHOOL_YEAR_ID);
-  const [calendarId, setCalendarId] = useState(ACTIVE_SCHOOL_YEAR_ID);
+  const initialSchoolYear = findCalendar(new URLSearchParams(window.location.search).get("calendar") ?? ACTIVE_SCHOOL_YEAR_ID);
+  const [calendarId, setCalendarId] = useState(initialSchoolYear.id);
   const [termId, setTermId] = useState<Term["id"]>(() => preferredTermId(initialSchoolYear, localTodayText()));
   const [mode, setMode] = useState<CalendarMode>("termPreview");
   const [previewScope, setPreviewScope] = useState<PreviewScope>("term");
@@ -802,8 +807,17 @@ export default function App() {
     setTermId(preferredTermId(schoolYear, today));
   }, [schoolYear.id, today]);
 
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("calendar", schoolYear.id);
+    window.history.replaceState(null, "", url);
+    setSelectedEvent(null);
+    setPendingJump(null);
+    setQuery("");
+  }, [schoolYear.id]);
+
   const matchesFilters = (item: CalendarEvent) => {
-    const haystack = `${item.title} ${displayEventTitle(item)} ${item.audience ?? ""} ${categoryMeta[item.category].label}`.toLowerCase();
+    const haystack = `${item.title} ${displayEventTitle(item)} ${item.audience ?? ""} ${item.note ?? ""} ${item.date} ${categoryMeta[item.category].label}`.toLowerCase();
     return !normalizedQuery || haystack.includes(normalizedQuery);
   };
 
@@ -877,6 +891,9 @@ export default function App() {
   const filteredYearEvents = useMemo(() => yearEvents.filter(matchesFilters), [normalizedQuery, yearEvents]);
   const filteredAllYearEvents = useMemo(() => allYearEvents.filter(matchesFilters), [allYearEvents, normalizedQuery]);
   const yearPreviewEvents = filteredAllYearEvents;
+  const searchResults = filteredAllYearEvents;
+  const searchNotices = schoolYear.terms.flatMap((item) => item.notices ?? []).filter((item) =>
+    `${item.title} ${item.note ?? ""} ${item.audience ?? ""}`.toLowerCase().includes(normalizedQuery));
   const termMonths = useMemo(() => monthRange(term.start, term.end), [term.start, term.end]);
   const fullYearMonths = useMemo(() => schoolYearMonths(schoolYear), [schoolYear]);
   const todayMonth = today.slice(0, 7);
@@ -1026,7 +1043,6 @@ export default function App() {
     let startY = 0;
     let tracking = false;
     let claimed = false;
-    let locked = false;
     let flipTimer = 0;
 
     const flip = (direction: 1 | -1) => {
@@ -1056,8 +1072,8 @@ export default function App() {
       const touch = event.touches[0];
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
-      if (!claimed && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx) * 1.2) claimed = true;
-      // 一旦确认是竖向手势，就接管它（阻止页面滚动与翻月相互打架）
+      if (!claimed && Math.abs(dx) > 18 && Math.abs(dx) > Math.abs(dy) * 1.5) claimed = true;
+      // Only claim deliberate horizontal swipes; preserve normal vertical page scrolling.
       if (claimed && event.cancelable) event.preventDefault();
     };
     const onTouchEnd = (event: TouchEvent) => {
@@ -1067,29 +1083,16 @@ export default function App() {
       const touch = event.changedTouches[0];
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
-      if (Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx)) flip(dy < 0 ? 1 : -1);
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) flip(dx < 0 ? 1 : -1);
     };
-    const onWheel = (event: WheelEvent) => {
-      if (locked) return;
-      if (Math.abs(event.deltaY) < 28 || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-      event.preventDefault();
-      flip(event.deltaY > 0 ? 1 : -1);
-      locked = true;
-      window.setTimeout(() => {
-        locked = false;
-      }, 560);
-    };
-
     grid.addEventListener("touchstart", onTouchStart, { passive: true });
     grid.addEventListener("touchmove", onTouchMove, { passive: false });
     grid.addEventListener("touchend", onTouchEnd, { passive: true });
-    grid.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       window.clearTimeout(flipTimer);
       grid.removeEventListener("touchstart", onTouchStart);
       grid.removeEventListener("touchmove", onTouchMove);
       grid.removeEventListener("touchend", onTouchEnd);
-      grid.removeEventListener("wheel", onWheel);
     };
   }, [mode, term.id, expanded]);
 
@@ -1147,11 +1150,11 @@ export default function App() {
               <small>{schoolYear.label} · {schoolYear.division}</small>
             </span>
           </a>
-          {schoolYear.status === "partial-source" ? <span className="source-status">已更新至第一学期</span> : null}
+          {schoolYear.status === "partial-source" ? <span className="source-status">{schoolYear.terms.length === 1 ? "已收录第一学期" : "部分日期待补充"}</span> : null}
           <div className="term-strip">
             <nav className="term-tabs" aria-label="学期选择">
               {schoolYear.terms.map((item) => (
-                <button key={item.id} type="button" className={item.id === term.id ? "active" : ""} onClick={() => setTermId(item.id)}>
+                <button key={item.id} type="button" aria-pressed={item.id === term.id} className={item.id === term.id ? "active" : ""} onClick={() => setTermId(item.id)}>
                   {item.label}
                 </button>
               ))}
@@ -1164,6 +1167,7 @@ export default function App() {
       <section className={`workspace ${isFullCalendarMode(mode) ? "calendar-workspace" : ""}`}>
         <aside className="side-rail" aria-label="校历控制与近期事件">
           <div className="control-block">
+            <p className="control-label">查看校历</p>
             <div className="select-grid">
               <select value={schoolYear.yearId} onChange={(event) => switchYear(event.target.value)} aria-label="选择学年">
                 {yearOptions.map(([yearId, label]) => (
@@ -1182,33 +1186,51 @@ export default function App() {
             </div>
             <label className="search-box">
               <Search size={17} />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索校历" aria-label="搜索校历事件" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索事件、日期或课表" aria-label="搜索校历事件" />
+              {query && <button type="button" className="clear-search" onClick={() => setQuery("")} aria-label="清除搜索">×</button>}
             </label>
+            {normalizedQuery && <section className="search-results" aria-label="搜索结果">
+              <p role="status">本学部全年 · {searchResults.length} 项日程 · {searchNotices.length} 项待定</p>
+              {!searchResults.length && !searchNotices.length && <p>没有匹配结果，请更换关键词或清除搜索。</p>}
+              <ol className="event-list">{searchResults.slice(0, 40).map((item) => <li key={item.id}>
+                <button type="button" onClick={() => { jumpToEvent(item); setQuery(""); }}>
+                  <span><strong>{displayEventTitle(item)}</strong><small>{formatRange(item.date, item.endDate)}</small></span>
+                </button>
+              </li>)}</ol>
+              {searchResults.length > 40 && <p>显示前40项，请输入更具体的关键词。</p>}
+              <PendingNotices notices={searchNotices} />
+            </section>}
             <div className="view-switch" aria-label="视图切换">
-              <button type="button" className={mode === "dayGridMonth" ? "active" : ""} onClick={() => setMode("dayGridMonth")}>
+              <button type="button" aria-pressed={mode === "dayGridMonth"} className={mode === "dayGridMonth" ? "active" : ""} onClick={() => setMode("dayGridMonth")}>
                 月历
               </button>
-              <button type="button" className={mode === "overview" ? "active" : ""} onClick={() => setMode("overview")}>
+              <button type="button" aria-pressed={mode === "overview"} className={mode === "overview" ? "active" : ""} onClick={() => setMode("overview")}>
                 概览
               </button>
-              <button type="button" className={mode === "termPreview" ? "active" : ""} onClick={() => setMode("termPreview")} aria-label="学期预览">
+              <button type="button" aria-pressed={mode === "termPreview"} className={mode === "termPreview" ? "active" : ""} onClick={() => setMode("termPreview")} aria-label="学期预览">
                 学期
               </button>
-              <button type="button" className={mode === "dayGridWeek" ? "active" : ""} onClick={() => setMode("dayGridWeek")} aria-label="周历">
+              <button type="button" aria-pressed={mode === "dayGridWeek"} className={mode === "dayGridWeek" ? "active" : ""} onClick={() => setMode("dayGridWeek")} aria-label="周历">
                 周历
               </button>
             </div>
             <div className="subscribe-row">
               <a className="export-button" href={webcalUrl}>
                 <Rss size={16} />
-                订阅
+                订阅校历
               </a>
               <a className="export-button" href={feedUrl} download>
-                ICS
+                下载 ICS
               </a>
             </div>
           </div>
 
+          <div className="source-context">
+            <strong>{schoolYear.division} · {term.label}</strong>
+            <p>{schoolYear.coverageNote ?? (schoolYear.status === "partial-source" ? (schoolYear.terms.length === 1 ? "仅收录已发布的第一学期，其他日期待官方补充。" : "部分日期尚未收录，请结合官方原表查看。") : "已收录该学年官方安排。")}</p>
+            <p>来源核对：<time>{schoolYear.source.extractedAt}</time> · <a href={schoolYear.source.url} target="_blank" rel="noreferrer">查看原表</a></p>
+            <p>订阅包含重要事件；A–F 课表日请在本站查看。</p>
+          </div>
           <div className="upcoming-block today-block">
             <div className="block-title">
               <CalendarDays size={16} />
@@ -1228,7 +1250,7 @@ export default function App() {
                   </li>
                 ))
               ) : (
-                <li className="empty-row">无</li>
+                <li className="empty-row">今日暂无已收录事项</li>
               )}
             </ol>
           </div>
@@ -1273,7 +1295,7 @@ export default function App() {
               {schoolYear.terms.map((item) => {
                 const itemStats = termStats(item);
                 return (
-                  <button key={item.id} className="overview-card" type="button" onClick={() => setTermId(item.id)}>
+                  <button key={item.id} className="overview-card" type="button" onClick={() => { setTermId(item.id); setMode("termPreview"); }}>
                     <span>{item.rangeLabel}</span>
                     <strong>{item.label}</strong>
                     <small>
@@ -1310,6 +1332,7 @@ export default function App() {
           </section>
         ) : mode === "termPreview" ? (
           <PreviewPanel
+            key={schoolYear.id}
             title={previewScope === "year" ? "年历预览" : "学期预览"}
             subtitle={previewScope === "year" ? `${schoolYear.label} · ${schoolYear.division}` : `${term.label} · ${term.rangeLabel}`}
             months={previewScope === "year" ? fullYearMonths : termMonths}
@@ -1332,16 +1355,16 @@ export default function App() {
                 <p>{term.label}</p>
                 <h2>{rangeTitle || term.rangeLabel}</h2>
                 <span className="swipe-hint">
-                  <ArrowUpDown size={13} />
-                  上下滑动 / 滚轮{mode === "dayGridWeek" ? "翻周" : "翻月"}
+                  <ArrowLeftRight size={13} />
+                  左右滑动{mode === "dayGridWeek" ? "翻周" : "翻月"}
                 </span>
               </div>
               <div className="calendar-nav">
                 <button type="button" onClick={() => calendarApi()?.prev()}>
                   {mode === "dayGridWeek" ? "上周" : "上月"}
                 </button>
-                <button type="button" onClick={() => calendarApi()?.today()}>
-                  今天
+                <button type="button" onClick={() => calendarApi()?.gotoDate(defaultFocusDate)}>
+                  {dateInRange(today, term.start, term.end) ? "今天" : "学期开始"}
                 </button>
                 <button type="button" onClick={() => calendarApi()?.next()}>
                   {mode === "dayGridWeek" ? "下周" : "下月"}
