@@ -1,6 +1,6 @@
 # 校历 operations
 
-Last normalized: 2026-09-01 PDT
+Last normalized: 2026-09-27
 Owner: suen
 Lifecycle: active
 Data class: anonymous_aggregate
@@ -10,7 +10,7 @@ Documentation status: generated from local source, Git/GitHub audit, project cat
 
 - Canonical local path: `/Users/ylsuen/CF/sites/tools/calendar` (`/Users/ylsuen/CF/calendar` remains a compatibility symlink)
 - Git authority: `ieduer/bdfz-calendar`
-- Current production source: `main` / `7800031f059006ce0cc5ef89f702e1dce1c03079`
+- Current production source: `main` / `fc4a1efdfac89e7c84cd72793183c5c06c88667c`
 - Runtime config: `calendar/wrangler.toml` (name `bdfz-calendar`)
 - Current state: [PROJECT_STATE.md](../PROJECT_STATE.md)
 - Workspace resource routing: [project resource index](../../reports/operations/project_resource_index.md)
@@ -35,7 +35,7 @@ Live Cloudflare matching is metadata-only and does not prove application health:
 
 | Resource | Live type | Readback | Detail |
 | --- | --- | --- | --- |
-| `bdfz-calendar` | Pages | verified 2026-09-01 | production branch `main`; canonical deployment `7d53cf5e-1a2d-4145-8a7d-634f7ac854b3`; source `7800031` |
+| `bdfz-calendar` | Pages | verified 2026-09-27 | production branch `main`; canonical deployment `a2c20fd9-45fb-4359-9ba5-842c96d0bbd1`; source `fc4a1ef` |
 
 ## Authority and dependencies
 
@@ -53,10 +53,12 @@ Live Cloudflare matching is metadata-only and does not prove application health:
 - Source authority: `/Users/ylsuen/CF/calendar`; Git/GitHub authority above.
 - External/local build inputs, archived paths, receipts, retention, and hydrate commands not stated below are `review_required` and block deletion.
 
-Catalog backup evidence:
+Current backup/restore authority: production `a2c20fd9-45fb-4359-9ba5-842c96d0bbd1`, immediate rollback `9252e04e-9c6c-41ad-9232-d392eb50d925` / `60f0a07` (preserves prep data). Refresh live baseline and use the registered release transaction for rollback. The 2026-09-27 release report below supersedes historical deployment references.
+
+Historical catalog backup evidence:
 - Cloudflare immutable Pages deployments: current=`7d53cf5e-1a2d-4145-8a7d-634f7ac854b3`, immediate previous accepted=`2c6c2d44-fb10-48ab-896f-c3a752af3a63`, secondary previous accepted=`82770eea-a79a-4d18-9b0e-ca5cb61b1044`
 
-Catalog restore evidence:
+Historical catalog restore evidence (not current release authority):
 - restore the immediately previous accepted code/assets by promoting production deployment `2c6c2d44-fb10-48ab-896f-c3a752af3a63`, then verify the custom domain and prior feed; `82770eea-a79a-4d18-9b0e-ca5cb61b1044` remains the secondary rollback anchor
 
 Before deleting any local resource, satisfy the workspace path-preserving archive, remote readback, isolated restore, receipt, handbook, and project-state gates.
@@ -155,7 +157,7 @@ version/deployment, rollback, dirty-tree state, unresolved follow-ups, and the
 manual/state updates in `reports/agent_action_log.jsonl`. Chat is not a durable handoff.
 
 
-## 2026-09-27 prep data and usability candidate
+## 2026-09-27 prep data and usability accepted release
 
 - Source: authenticated Brave Yuque `26-27学年（预科部）`, visually verified rows 1–54; see `source-notes-2026-2027.md`. New calendar `2026-2027-prep`: 119 source-labelled cycle dates, 13 dated events, 3 undated January examinations. Other five calendar objects remain structurally identical to accepted source `7800031`.
 - User-facing changes: current division and source coverage visible; division-specific share URL via `?calendar=2026-2027-prep`; explicit search result list including undated notices; mobile division/search/subscription controls precede the calendar; horizontal swipe navigation preserves vertical scrolling; historical date summary and source labels corrected; both detail dialogs support focus containment, Escape and focus restoration; readable dark-mode cycle tags and reduced-motion support.
@@ -168,3 +170,5 @@ manual/state updates in `reports/agent_action_log.jsonl`. Chat is not a durable 
 ## Local runtime disk profile
 
 Canonical Git/object store: `/Users/ylsuen/CF/sites/tools/calendar`; dirty unrelated instruction/manual edits are preserved. One isolated task worktree uses the same object store and existing dependency tree only when lockfile SHA-256 matches. Normal update peak: 2 GiB; preflight: `scripts/check_workspace_disk_budget.sh --operation calendar-prep-ui --peak-gib 2` from CF root. Worktree/build/feed/tsbuildinfo are reproducible derivatives; baseline exported source is comparison-only and can never publish. Browser screenshots, source notes and release receipts are retained evidence. Manifest: `/Users/ylsuen/CF/reports/private/runtime-artifact-manifests/calendar-prep-ui-20260927/manifest.json`; owner `codex-calendar-prep-ui`, running and closeout gates use `scripts/check_task_runtime_manifest.mjs`. No new physical dependencies or browser download is needed. ENOSPC invalidates all task-generated outputs; recover reserve before regenerating from pinned Git/lockfile. The pre-existing shared dependency tree is not this task's cleanup target.
+
+Final 2026-09-27 acceptance: production `a2c20fd9-45fb-4359-9ba5-842c96d0bbd1`, source `fc4a1ef`; 12/12 live artifacts matched; focused tests, build, 6-calendar audit (0 errors / 10 expected warnings), mobile/desktop light/dark and final sticky-header hit tests passed. Registry accepted and rollback projections updated. Full evidence and retention authority are in the linked RELEASE.md.
